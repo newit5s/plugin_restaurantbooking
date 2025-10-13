@@ -37,6 +37,75 @@ class RB_I18n {
     }
 
     /**
+     * Supported restaurant locations metadata.
+     *
+     * @return array
+     */
+    public static function get_locations() {
+        return array(
+            'vn' => array(
+                'code' => 'vn',
+                'flag' => '🇻🇳',
+                'labels' => array(
+                    'vi' => 'Việt Nam',
+                    'en' => 'Vietnam',
+                    'ja' => 'ベトナム',
+                ),
+            ),
+            'jp' => array(
+                'code' => 'jp',
+                'flag' => '🇯🇵',
+                'labels' => array(
+                    'vi' => 'Nhật Bản',
+                    'en' => 'Japan',
+                    'ja' => '日本',
+                ),
+            ),
+            'ph' => array(
+                'code' => 'ph',
+                'flag' => '🇵🇭',
+                'labels' => array(
+                    'vi' => 'Philippines',
+                    'en' => 'Philippines',
+                    'ja' => 'フィリピン',
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Sanitize location value and fall back to default.
+     *
+     * @param string $location
+     * @return string
+     */
+    public static function sanitize_location($location) {
+        $location = strtolower(sanitize_text_field($location));
+        $locations = self::get_locations();
+        return isset($locations[$location]) ? $location : 'vn';
+    }
+
+    /**
+     * Get localized label for a location.
+     *
+     * @param string $location
+     * @param string $language
+     * @return string
+     */
+    public static function get_location_label($location, $language = 'vi') {
+        $locations = self::get_locations();
+        $language = self::sanitize_language($language);
+
+        if (!isset($locations[$location])) {
+            $location = 'vn';
+        }
+
+        $labels = $locations[$location]['labels'];
+
+        return isset($labels[$language]) ? $labels[$language] : (isset($labels['vi']) ? $labels['vi'] : '');
+    }
+
+    /**
      * Check if a language is supported.
      *
      * @param string $language
@@ -54,8 +123,17 @@ class RB_I18n {
     public static function get_frontend_translations() {
         return array(
             'vi' => array(
+                'location_selection_title' => 'Chọn khu vực nhà hàng',
+                'location_selection_description' => 'Vui lòng chọn khu vực nhà hàng mà bạn muốn đặt bàn.',
+                'location_option_vn' => '🇻🇳 Việt Nam',
+                'location_option_jp' => '🇯🇵 Nhật Bản',
+                'location_option_ph' => '🇵🇭 Philippines',
+                'location_required' => 'Vui lòng chọn khu vực nhà hàng.',
                 'language_selection_title' => 'Chọn ngôn ngữ của bạn',
                 'language_selection_description' => 'Vui lòng chọn ngôn ngữ bạn muốn sử dụng.',
+                'check_availability_button' => 'Kiểm tra tình trạng bàn',
+                'availability_precheck_required' => 'Vui lòng kiểm tra tình trạng bàn trước khi điền thông tin.',
+                'availability_ready' => 'Còn bàn trống! Bạn có thể tiếp tục điền thông tin.',
                 'modal_title' => 'Đặt bàn nhà hàng',
                 'button_text' => 'Đặt bàn ngay',
                 'customer_name_label' => 'Họ và tên *',
@@ -91,8 +169,17 @@ class RB_I18n {
                 'security_failed' => 'Kiểm tra bảo mật thất bại',
             ),
             'en' => array(
+                'location_selection_title' => 'Choose a restaurant location',
+                'location_selection_description' => 'Please select the restaurant location where you would like to dine.',
+                'location_option_vn' => '🇻🇳 Vietnam',
+                'location_option_jp' => '🇯🇵 Japan',
+                'location_option_ph' => '🇵🇭 Philippines',
+                'location_required' => 'Please choose a restaurant location.',
                 'language_selection_title' => 'Choose your language',
                 'language_selection_description' => 'Please choose the language you prefer.',
+                'check_availability_button' => 'Check availability',
+                'availability_precheck_required' => 'Please check availability before entering your details.',
+                'availability_ready' => 'Great news! A table is available—please complete your details.',
                 'modal_title' => 'Restaurant Booking',
                 'button_text' => 'Book a Table',
                 'customer_name_label' => 'Full Name *',
@@ -128,8 +215,17 @@ class RB_I18n {
                 'security_failed' => 'Security check failed',
             ),
             'ja' => array(
+                'location_selection_title' => '店舗エリアを選択してください',
+                'location_selection_description' => 'ご利用になりたい店舗エリアをお選びください。',
+                'location_option_vn' => '🇻🇳 ベトナム',
+                'location_option_jp' => '🇯🇵 日本',
+                'location_option_ph' => '🇵🇭 フィリピン',
+                'location_required' => '店舗エリアを選択してください。',
                 'language_selection_title' => '言語を選択してください',
                 'language_selection_description' => 'ご利用になりたい言語を選択してください。',
+                'check_availability_button' => '空席を確認する',
+                'availability_precheck_required' => '情報を入力する前に空席をご確認ください。',
+                'availability_ready' => '空席があります。お客様情報をご入力ください。',
                 'modal_title' => 'レストラン予約',
                 'button_text' => '予約する',
                 'customer_name_label' => '氏名 *',
@@ -182,6 +278,8 @@ class RB_I18n {
                 'guest_count_label' => 'Số lượng khách *',
                 'booking_date_label' => 'Ngày đặt *',
                 'booking_time_label' => 'Giờ đặt *',
+                'booking_location_label' => 'Khu vực nhà hàng *',
+                'booking_language_label' => 'Ngôn ngữ sử dụng *',
                 'booking_source_label' => 'Nguồn đặt bàn *',
                 'booking_source_description' => 'Chọn nguồn khách hàng đặt bàn từ đâu',
                 'special_requests_label' => 'Yêu cầu đặc biệt',
@@ -202,6 +300,9 @@ class RB_I18n {
                 'source_walk_in' => '🚶 Khách vãng lai',
                 'source_email' => '✉️ Email',
                 'source_other' => '❓ Khác',
+                'location_option_vn' => '🇻🇳 Việt Nam',
+                'location_option_jp' => '🇯🇵 Nhật Bản',
+                'location_option_ph' => '🇵🇭 Philippines',
             ),
             'en' => array(
                 'create_booking_title' => 'Create a new reservation',
@@ -211,6 +312,8 @@ class RB_I18n {
                 'guest_count_label' => 'Number of guests *',
                 'booking_date_label' => 'Reservation date *',
                 'booking_time_label' => 'Reservation time *',
+                'booking_location_label' => 'Restaurant location *',
+                'booking_language_label' => 'Working language *',
                 'booking_source_label' => 'Reservation source *',
                 'booking_source_description' => 'Choose where the reservation came from',
                 'special_requests_label' => 'Special requests',
@@ -231,6 +334,9 @@ class RB_I18n {
                 'source_walk_in' => '🚶 Walk-in',
                 'source_email' => '✉️ Email',
                 'source_other' => '❓ Other',
+                'location_option_vn' => '🇻🇳 Vietnam',
+                'location_option_jp' => '🇯🇵 Japan',
+                'location_option_ph' => '🇵🇭 Philippines',
             ),
             'ja' => array(
                 'create_booking_title' => '新規予約を作成',
@@ -240,6 +346,8 @@ class RB_I18n {
                 'guest_count_label' => '人数 *',
                 'booking_date_label' => '予約日 *',
                 'booking_time_label' => '予約時間 *',
+                'booking_location_label' => '店舗エリア *',
+                'booking_language_label' => '使用言語 *',
                 'booking_source_label' => '予約経路 *',
                 'booking_source_description' => 'お客様がどこから予約されたかを選択してください',
                 'special_requests_label' => '特別なご要望',
@@ -260,6 +368,9 @@ class RB_I18n {
                 'source_walk_in' => '🚶 来店',
                 'source_email' => '✉️ メール',
                 'source_other' => '❓ その他',
+                'location_option_vn' => '🇻🇳 ベトナム',
+                'location_option_jp' => '🇯🇵 日本',
+                'location_option_ph' => '🇵🇭 フィリピン',
             ),
         );
     }

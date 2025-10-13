@@ -36,6 +36,8 @@ class RB_Frontend {
         $default_language = isset($settings['frontend_language']) ? RB_I18n::sanitize_language($settings['frontend_language']) : 'vi';
         $translations = RB_I18n::get_section_translations('frontend', $default_language);
         $languages = RB_I18n::get_languages();
+        $locations = RB_I18n::get_locations();
+        $default_location = isset($settings['default_location']) ? RB_I18n::sanitize_location($settings['default_location']) : 'vn';
 
         $atts = shortcode_atts(array(
             'title' => $translations['modal_title'],
@@ -55,7 +57,7 @@ class RB_Frontend {
 
         ob_start();
         ?>
-        <div class="rb-booking-widget" data-rb-widget="<?php echo esc_attr($widget_id); ?>" data-default-language="<?php echo esc_attr($default_language); ?>">
+        <div class="rb-booking-widget" data-rb-widget="<?php echo esc_attr($widget_id); ?>" data-default-language="<?php echo esc_attr($default_language); ?>" data-default-location="<?php echo esc_attr($default_location); ?>">
             <?php if ($atts['show_button'] === 'yes') : ?>
                 <button type="button" class="rb-open-modal-btn" data-lang-key="button_text" data-lang-attr="text">
                     <?php echo esc_html($translations['button_text']); ?>
@@ -66,15 +68,33 @@ class RB_Frontend {
                 <div class="rb-modal-content">
                     <span class="rb-close" aria-label="Close">&times;</span>
 
-                    <div class="rb-language-selector">
-                        <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
-                        <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
-                        <div class="rb-language-options">
-                            <?php foreach ($languages as $code => $language) : ?>
-                                <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
-                                    <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
-                                </button>
-                            <?php endforeach; ?>
+                    <div class="rb-preferences">
+                        <div class="rb-location-selector" data-lang-scope>
+                            <h3 data-lang-key="location_selection_title" data-lang-attr="text"><?php echo esc_html($translations['location_selection_title']); ?></h3>
+                            <p data-lang-key="location_selection_description" data-lang-attr="text"><?php echo esc_html($translations['location_selection_description']); ?></p>
+                            <div class="rb-location-options">
+                                <?php foreach ($locations as $code => $location) : ?>
+                                    <?php
+                                    $translation_key = 'location_option_' . $code;
+                                    $label = isset($translations[$translation_key]) ? $translations[$translation_key] : $location['labels']['vi'];
+                                    ?>
+                                    <button type="button" class="rb-location-option<?php echo $code === $default_location ? ' active' : ''; ?>" data-location="<?php echo esc_attr($code); ?>" data-lang-key="<?php echo esc_attr($translation_key); ?>" data-lang-attr="text">
+                                        <?php echo esc_html($label); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="rb-language-selector" data-lang-scope>
+                            <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
+                            <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
+                            <div class="rb-language-options">
+                                <?php foreach ($languages as $code => $language) : ?>
+                                    <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
+                                        <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -83,69 +103,83 @@ class RB_Frontend {
                     <form id="rb-booking-form" class="rb-form" data-default-language="<?php echo esc_attr($default_language); ?>">
                         <?php wp_nonce_field('rb_booking_nonce', 'rb_nonce'); ?>
                         <input type="hidden" name="booking_language" id="rb_booking_language" value="<?php echo esc_attr($default_language); ?>">
+                        <input type="hidden" name="booking_location" id="rb_booking_location" value="<?php echo esc_attr($default_location); ?>">
 
-                        <div class="rb-form-row">
-                            <div class="rb-form-group">
-                                <label for="rb_customer_name" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
-                                <input type="text" id="rb_customer_name" name="customer_name" required>
+                        <div class="rb-section rb-section-schedule">
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_guest_count" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
+                                    <select id="rb_guest_count" name="guest_count" class="rb-schedule-field" required>
+                                        <?php for ($i = 1; $i <= 20; $i++) : ?>
+                                            <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="rb-form-group">
+                                    <label for="rb_booking_date" data-lang-key="booking_date_label" data-lang-attr="text"><?php echo esc_html($translations['booking_date_label']); ?></label>
+                                    <?php
+                                    $max_days = isset($settings['max_advance_booking']) ? intval($settings['max_advance_booking']) : 30;
+                                    $min_hours = isset($settings['min_advance_booking']) ? intval($settings['min_advance_booking']) : 2;
+                                    $min_date = date('Y-m-d', strtotime("+{$min_hours} hours"));
+                                    $max_date = date('Y-m-d', strtotime("+{$max_days} days"));
+                                    ?>
+                                    <input type="date" id="rb_booking_date" name="booking_date" class="rb-schedule-field"
+                                           min="<?php echo $min_date; ?>"
+                                           max="<?php echo $max_date; ?>" required>
+                                </div>
                             </div>
 
-                            <div class="rb-form-group">
-                                <label for="rb_customer_phone" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
-                                <input type="tel" id="rb_customer_phone" name="customer_phone" required>
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_booking_time" data-lang-key="booking_time_label" data-lang-attr="text"><?php echo esc_html($translations['booking_time_label']); ?></label>
+                                    <select id="rb_booking_time" name="booking_time" class="rb-schedule-field" required>
+                                        <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
+                                        <?php if (!empty($time_slots)) : ?>
+                                            <?php foreach ($time_slots as $slot) : ?>
+                                                <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                                <div class="rb-form-group rb-availability-control">
+                                    <label>&nbsp;</label>
+                                    <button type="button" class="rb-btn-secondary rb-check-availability" data-lang-key="check_availability_button" data-lang-attr="text">
+                                        <?php echo esc_html($translations['check_availability_button']); ?>
+                                    </button>
+                                </div>
                             </div>
+
+                            <div class="rb-availability-message" role="status"></div>
                         </div>
 
-                        <div class="rb-form-row">
-                            <div class="rb-form-group">
-                                <label for="rb_customer_email" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
-                                <input type="email" id="rb_customer_email" name="customer_email" required>
+                        <div class="rb-section rb-section-details">
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_customer_name" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
+                                    <input type="text" id="rb_customer_name" name="customer_name" class="rb-contact-field" required disabled>
+                                </div>
+
+                                <div class="rb-form-group">
+                                    <label for="rb_customer_phone" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
+                                    <input type="tel" id="rb_customer_phone" name="customer_phone" class="rb-contact-field" required disabled>
+                                </div>
+                            </div>
+
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_customer_email" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
+                                    <input type="email" id="rb_customer_email" name="customer_email" class="rb-contact-field" required disabled>
+                                </div>
                             </div>
 
                             <div class="rb-form-group">
-                                <label for="rb_guest_count" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
-                                <select id="rb_guest_count" name="guest_count" required>
-                                    <?php for ($i = 1; $i <= 20; $i++) : ?>
-                                        <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
-                                    <?php endfor; ?>
-                                </select>
+                                <label for="rb_special_requests" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
+                                <textarea id="rb_special_requests" name="special_requests" rows="3" class="rb-contact-field" disabled></textarea>
                             </div>
-                        </div>
-
-                        <div class="rb-form-row">
-                            <div class="rb-form-group">
-                                <label for="rb_booking_date" data-lang-key="booking_date_label" data-lang-attr="text"><?php echo esc_html($translations['booking_date_label']); ?></label>
-                                <?php
-                                $max_days = isset($settings['max_advance_booking']) ? intval($settings['max_advance_booking']) : 30;
-                                $min_hours = isset($settings['min_advance_booking']) ? intval($settings['min_advance_booking']) : 2;
-                                $min_date = date('Y-m-d', strtotime("+{$min_hours} hours"));
-                                $max_date = date('Y-m-d', strtotime("+{$max_days} days"));
-                                ?>
-                                <input type="date" id="rb_booking_date" name="booking_date"
-                                    min="<?php echo $min_date; ?>"
-                                    max="<?php echo $max_date; ?>" required>
-                            </div>
-
-                            <div class="rb-form-group">
-                                <label for="rb_booking_time" data-lang-key="booking_time_label" data-lang-attr="text"><?php echo esc_html($translations['booking_time_label']); ?></label>
-                                <select id="rb_booking_time" name="booking_time" required>
-                                    <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
-                                    <?php if (!empty($time_slots)) : ?>
-                                        <?php foreach ($time_slots as $slot) : ?>
-                                            <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="rb-form-group">
-                            <label for="rb_special_requests" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
-                            <textarea id="rb_special_requests" name="special_requests" rows="3"></textarea>
                         </div>
 
                         <div class="rb-form-actions">
-                            <button type="submit" class="rb-btn-primary" data-lang-key="submit_button" data-lang-attr="text"><?php echo esc_html($translations['submit_button']); ?></button>
+                            <button type="submit" class="rb-btn-primary" data-lang-key="submit_button" data-lang-attr="text" disabled><?php echo esc_html($translations['submit_button']); ?></button>
                             <button type="button" class="rb-btn-cancel rb-close-modal" data-lang-key="cancel_button" data-lang-attr="text"><?php echo esc_html($translations['cancel_button']); ?></button>
                         </div>
 
@@ -156,15 +190,33 @@ class RB_Frontend {
 
             <?php if ($atts['show_button'] === 'no') : ?>
                 <div class="rb-inline-form" data-lang-scope>
-                    <div class="rb-language-selector">
-                        <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
-                        <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
-                        <div class="rb-language-options">
-                            <?php foreach ($languages as $code => $language) : ?>
-                                <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
-                                    <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
-                                </button>
-                            <?php endforeach; ?>
+                    <div class="rb-preferences">
+                        <div class="rb-location-selector" data-lang-scope>
+                            <h3 data-lang-key="location_selection_title" data-lang-attr="text"><?php echo esc_html($translations['location_selection_title']); ?></h3>
+                            <p data-lang-key="location_selection_description" data-lang-attr="text"><?php echo esc_html($translations['location_selection_description']); ?></p>
+                            <div class="rb-location-options">
+                                <?php foreach ($locations as $code => $location) : ?>
+                                    <?php
+                                    $translation_key = 'location_option_' . $code;
+                                    $label = isset($translations[$translation_key]) ? $translations[$translation_key] : $location['labels']['vi'];
+                                    ?>
+                                    <button type="button" class="rb-location-option<?php echo $code === $default_location ? ' active' : ''; ?>" data-location="<?php echo esc_attr($code); ?>" data-lang-key="<?php echo esc_attr($translation_key); ?>" data-lang-attr="text">
+                                        <?php echo esc_html($label); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="rb-language-selector" data-lang-scope>
+                            <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
+                            <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
+                            <div class="rb-language-options">
+                                <?php foreach ($languages as $code => $language) : ?>
+                                    <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
+                                        <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -172,58 +224,76 @@ class RB_Frontend {
                     <form id="rb-booking-form-inline" class="rb-form" data-default-language="<?php echo esc_attr($default_language); ?>">
                         <?php wp_nonce_field('rb_booking_nonce', 'rb_nonce_inline'); ?>
                         <input type="hidden" name="booking_language" id="rb_booking_language_inline" value="<?php echo esc_attr($default_language); ?>">
+                        <input type="hidden" name="booking_location" id="rb_booking_location_inline" value="<?php echo esc_attr($default_location); ?>">
 
-                        <div class="rb-form-grid">
-                            <div class="rb-form-group">
-                                <label for="rb_name_inline" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
-                                <input type="text" id="rb_name_inline" name="customer_name" required>
+                        <div class="rb-section rb-section-schedule">
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_guests_inline" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
+                                    <select id="rb_guests_inline" name="guest_count" class="rb-schedule-field" required>
+                                        <?php for ($i = 1; $i <= 20; $i++) : ?>
+                                            <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="rb-form-group">
+                                    <label for="rb_date_inline" data-lang-key="inline_date_label" data-lang-attr="text"><?php echo esc_html($translations['inline_date_label']); ?></label>
+                                    <input type="date" id="rb_date_inline" name="booking_date" class="rb-schedule-field"
+                                           min="<?php echo $min_date; ?>"
+                                           max="<?php echo $max_date; ?>" required>
+                                </div>
+                            </div>
+
+                            <div class="rb-form-row">
+                                <div class="rb-form-group">
+                                    <label for="rb_time_inline" data-lang-key="inline_time_label" data-lang-attr="text"><?php echo esc_html($translations['inline_time_label']); ?></label>
+                                    <select id="rb_time_inline" name="booking_time" class="rb-schedule-field" required>
+                                        <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
+                                        <?php if (!empty($time_slots)) : ?>
+                                            <?php foreach ($time_slots as $slot) : ?>
+                                                <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                                <div class="rb-form-group rb-availability-control">
+                                    <label>&nbsp;</label>
+                                    <button type="button" class="rb-btn-secondary rb-check-availability" data-lang-key="check_availability_button" data-lang-attr="text">
+                                        <?php echo esc_html($translations['check_availability_button']); ?>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="rb-availability-message" role="status"></div>
+                        </div>
+
+                        <div class="rb-section rb-section-details">
+                            <div class="rb-form-grid">
+                                <div class="rb-form-group">
+                                    <label for="rb_name_inline" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
+                                    <input type="text" id="rb_name_inline" name="customer_name" class="rb-contact-field" required disabled>
+                                </div>
+
+                                <div class="rb-form-group">
+                                    <label for="rb_phone_inline" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
+                                    <input type="tel" id="rb_phone_inline" name="customer_phone" class="rb-contact-field" required disabled>
+                                </div>
+
+                                <div class="rb-form-group">
+                                    <label for="rb_email_inline" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
+                                    <input type="email" id="rb_email_inline" name="customer_email" class="rb-contact-field" required disabled>
+                                </div>
                             </div>
 
                             <div class="rb-form-group">
-                                <label for="rb_phone_inline" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
-                                <input type="tel" id="rb_phone_inline" name="customer_phone" required>
-                            </div>
-
-                            <div class="rb-form-group">
-                                <label for="rb_email_inline" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
-                                <input type="email" id="rb_email_inline" name="customer_email" required>
-                            </div>
-
-                            <div class="rb-form-group">
-                                <label for="rb_guests_inline" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
-                                <select id="rb_guests_inline" name="guest_count" required>
-                                    <?php for ($i = 1; $i <= 20; $i++) : ?>
-                                        <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
-                                    <?php endfor; ?>
-                                </select>
-                            </div>
-
-                            <div class="rb-form-group">
-                                <label for="rb_date_inline" data-lang-key="inline_date_label" data-lang-attr="text"><?php echo esc_html($translations['inline_date_label']); ?></label>
-                                <input type="date" id="rb_date_inline" name="booking_date"
-                                       min="<?php echo date('Y-m-d'); ?>"
-                                       max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>" required>
-                            </div>
-
-                            <div class="rb-form-group">
-                                <label for="rb_time_inline" data-lang-key="inline_time_label" data-lang-attr="text"><?php echo esc_html($translations['inline_time_label']); ?></label>
-                                <select id="rb_time_inline" name="booking_time" required>
-                                    <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
-                                    <?php if (!empty($time_slots)) : ?>
-                                        <?php foreach ($time_slots as $slot) : ?>
-                                            <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
+                                <label for="rb_requests_inline" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
+                                <textarea id="rb_requests_inline" name="special_requests" rows="3" class="rb-contact-field" disabled></textarea>
                             </div>
                         </div>
 
-                        <div class="rb-form-group">
-                            <label for="rb_requests_inline" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
-                            <textarea id="rb_requests_inline" name="special_requests" rows="3"></textarea>
+                        <div class="rb-form-actions">
+                            <button type="submit" class="rb-btn-primary" data-lang-key="inline_submit_button" data-lang-attr="text" disabled><?php echo esc_html($translations['inline_submit_button']); ?></button>
                         </div>
-
-                        <button type="submit" class="rb-btn-primary" data-lang-key="inline_submit_button" data-lang-attr="text"><?php echo esc_html($translations['inline_submit_button']); ?></button>
 
                         <div id="rb-form-message-inline" class="rb-form-message"></div>
                     </form>
@@ -342,6 +412,12 @@ class RB_Frontend {
 
         $language = isset($_POST['booking_language']) ? RB_I18n::sanitize_language($_POST['booking_language']) : 'vi';
         $texts = RB_I18n::get_section_translations('frontend', $language);
+        $location_input = isset($_POST['booking_location']) ? $_POST['booking_location'] : '';
+        if (empty($location_input)) {
+            wp_send_json_error(array('message' => $texts['location_required']));
+            wp_die();
+        }
+        $location = RB_I18n::sanitize_location($location_input);
 
         $nonce = isset($_POST['rb_nonce']) ? $_POST['rb_nonce'] : (isset($_POST['rb_nonce_inline']) ? $_POST['rb_nonce_inline'] : '');
         if (!wp_verify_nonce($nonce, 'rb_booking_nonce')) {
@@ -368,7 +444,9 @@ class RB_Frontend {
             'special_requests' => isset($_POST['special_requests']) ? sanitize_textarea_field($_POST['special_requests']) : '',
             'status' => 'pending',
             'booking_source' => 'website',
-            'created_at' => current_time('mysql')
+            'created_at' => current_time('mysql'),
+            'language' => $language,
+            'location' => $location
         );
 
         if (!is_email($booking_data['customer_email'])) {
@@ -400,7 +478,8 @@ class RB_Frontend {
         $is_available = $rb_booking->is_time_slot_available(
             $booking_data['booking_date'],
             $booking_data['booking_time'],
-            $booking_data['guest_count']
+            $booking_data['guest_count'],
+            $location
         );
 
         if (!$is_available) {
@@ -454,10 +533,18 @@ class RB_Frontend {
         $date = sanitize_text_field($_POST['date']);
         $time = sanitize_text_field($_POST['time']);
         $guests = intval($_POST['guests']);
-        
+        $location_input = isset($_POST['location']) ? $_POST['location'] : '';
+
+        if (empty($location_input)) {
+            wp_send_json_error(array('message' => $texts['location_required']));
+            wp_die();
+        }
+
+        $location = RB_I18n::sanitize_location($location_input);
+
         global $rb_booking;
-        $is_available = $rb_booking->is_time_slot_available($date, $time, $guests);
-        $count = $rb_booking->available_table_count($date, $time, $guests);
+        $is_available = $rb_booking->is_time_slot_available($date, $time, $guests, $location);
+        $count = $rb_booking->available_table_count($date, $time, $guests, $location);
 
         if ($is_available && $count > 0) {
             $message = sprintf($texts['availability_success'], number_format_i18n($count), number_format_i18n($guests));

@@ -42,6 +42,8 @@ class RB_Database {
             table_number int(11) DEFAULT NULL,
             status varchar(20) DEFAULT 'pending',
             booking_source varchar(50) DEFAULT 'website',
+            language varchar(10) DEFAULT 'vi',
+            location varchar(50) DEFAULT 'vn',
             special_requests text DEFAULT NULL,
             admin_notes text DEFAULT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -50,19 +52,21 @@ class RB_Database {
             PRIMARY KEY (id),
             KEY booking_date (booking_date),
             KEY status (status),
-            KEY booking_source (booking_source)
+            KEY booking_source (booking_source),
+            KEY location (location)
         ) $this->charset_collate;";
         
         dbDelta($sql);
     }
     
     private function create_tables_table() {
-        $table_name = $this->wpdb->prefix . 'rb_tables';
-        
+            $table_name = $this->wpdb->prefix . 'rb_tables';
+
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id int(11) NOT NULL AUTO_INCREMENT,
             table_number int(11) NOT NULL,
             capacity int(11) NOT NULL,
+            location varchar(50) DEFAULT 'vn',
             is_available tinyint(1) DEFAULT 1,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -102,19 +106,63 @@ class RB_Database {
     
     public function add_booking_source_column() {
         $table_name = $this->wpdb->prefix . 'rb_bookings';
-        
-        $column_exists = $this->wpdb->get_results(
-            "SHOW COLUMNS FROM $table_name LIKE 'booking_source'"
-        );
-        
-        if (empty($column_exists)) {
+
+        if (!$this->column_exists($table_name, 'booking_source')) {
             $this->wpdb->query(
-                "ALTER TABLE $table_name 
-                ADD COLUMN booking_source varchar(50) DEFAULT 'website' AFTER status,
-                ADD COLUMN admin_notes text DEFAULT NULL AFTER special_requests,
+                "ALTER TABLE $table_name
+                ADD COLUMN booking_source varchar(50) DEFAULT 'website' AFTER status"
+            );
+        }
+
+        if (!$this->column_exists($table_name, 'language')) {
+            $this->wpdb->query(
+                "ALTER TABLE $table_name
+                ADD COLUMN language varchar(10) DEFAULT 'vi' AFTER booking_source"
+            );
+        }
+
+        if (!$this->column_exists($table_name, 'location')) {
+            $this->wpdb->query(
+                "ALTER TABLE $table_name
+                ADD COLUMN location varchar(50) DEFAULT 'vn' AFTER language"
+            );
+            $this->wpdb->query(
+                "UPDATE $table_name SET location = 'vn' WHERE location IS NULL OR location = ''"
+            );
+        }
+
+        if (!$this->column_exists($table_name, 'admin_notes')) {
+            $this->wpdb->query(
+                "ALTER TABLE $table_name
+                ADD COLUMN admin_notes text DEFAULT NULL AFTER special_requests"
+            );
+        }
+
+        if (!$this->column_exists($table_name, 'created_by')) {
+            $this->wpdb->query(
+                "ALTER TABLE $table_name
                 ADD COLUMN created_by int(11) DEFAULT NULL AFTER confirmed_at"
             );
         }
+
+        $tables_table = $this->wpdb->prefix . 'rb_tables';
+        if (!$this->column_exists($tables_table, 'location')) {
+            $this->wpdb->query(
+                "ALTER TABLE $tables_table
+                ADD COLUMN location varchar(50) DEFAULT 'vn' AFTER capacity"
+            );
+            $this->wpdb->query(
+                "UPDATE $tables_table SET location = 'vn' WHERE location IS NULL OR location = ''"
+            );
+        }
+    }
+
+    private function column_exists($table, $column) {
+        $column = sanitize_key($column);
+        $table = esc_sql($table);
+        $query = $this->wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", $column);
+        $result = $this->wpdb->get_results($query);
+        return !empty($result);
     }
     
     private function insert_default_tables() {
@@ -129,10 +177,11 @@ class RB_Database {
                     array(
                         'table_number' => $i,
                         'capacity' => ($i <= 4) ? 2 : (($i <= 8) ? 4 : 6),
+                        'location' => 'vn',
                         'is_available' => 1,
                         'created_at' => current_time('mysql')
                     ),
-                    array('%d', '%d', '%d', '%s')
+                    array('%d', '%d', '%s', '%d', '%s')
                 );
             }
         }
