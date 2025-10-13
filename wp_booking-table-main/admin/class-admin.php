@@ -8,11 +8,32 @@ if (!defined('ABSPATH')) {
 }
 
 class RB_Admin {
-    
+
+    private $admin_language;
+
     public function __construct() {
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $this->admin_language = $this->determine_admin_language();
+
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'handle_admin_actions'));
         add_action('admin_notices', array($this, 'display_admin_notices'));
+    }
+
+    private function determine_admin_language() {
+        $locale = function_exists('get_user_locale') ? get_user_locale() : get_locale();
+        return RB_I18n::get_language_from_locale($locale);
+    }
+
+    private function get_admin_language() {
+        if (empty($this->admin_language)) {
+            $this->admin_language = $this->determine_admin_language();
+        }
+
+        return $this->admin_language;
     }
     
     public function add_admin_menu() {
@@ -76,11 +97,7 @@ class RB_Admin {
         global $wpdb;
         $settings = get_option('rb_settings', array());
 
-        $admin_language = isset($settings['admin_language']) ? $settings['admin_language'] : 'vi';
-
-        if (!class_exists('RB_I18n')) {
-            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
-        }
+        $admin_language = $this->get_admin_language();
 
         $backend_texts = RB_I18n::get_section_translations('backend', $admin_language);
         $frontend_texts = RB_I18n::get_section_translations('frontend', $admin_language);
@@ -121,16 +138,17 @@ class RB_Admin {
 
                         <tr>
                             <th scope="row">
-                                <label for="booking_language"><?php echo esc_html($backend_texts['booking_language_label']); ?></label>
+                                <?php echo esc_html($backend_texts['booking_language_label']); ?>
                             </th>
                             <td>
-                                <select name="booking_language" id="booking_language" required>
-                                    <?php foreach ($languages as $code => $language) : ?>
-                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($admin_language, $code); ?>>
-                                            <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <input type="hidden" name="booking_language" value="<?php echo esc_attr($admin_language); ?>">
+                                <?php
+                                $language_label = isset($languages[$admin_language])
+                                    ? $languages[$admin_language]['flag'] . ' ' . $languages[$admin_language]['native']
+                                    : strtoupper($admin_language);
+                                $language_note = sprintf($backend_texts['booking_language_auto_note'], esc_html($language_label));
+                                echo wp_kses_post('<p class="description">' . $language_note . '</p>');
+                                ?>
                             </td>
                         </tr>
 
@@ -314,12 +332,7 @@ class RB_Admin {
         global $wpdb;
         $table_name = $wpdb->prefix . 'rb_bookings';
 
-        $settings = get_option('rb_settings', array());
-        $admin_language = isset($settings['admin_language']) ? $settings['admin_language'] : 'vi';
-
-        if (!class_exists('RB_I18n')) {
-            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
-        }
+        $admin_language = $this->get_admin_language();
 
         $locations = RB_I18n::get_locations();
         $languages = RB_I18n::get_languages();
@@ -654,12 +667,7 @@ class RB_Admin {
         global $wpdb;
         $table_name = $wpdb->prefix . 'rb_tables';
 
-        $settings = get_option('rb_settings', array());
-        $admin_language = isset($settings['admin_language']) ? $settings['admin_language'] : 'vi';
-
-        if (!class_exists('RB_I18n')) {
-            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
-        }
+        $admin_language = $this->get_admin_language();
 
         $locations = RB_I18n::get_locations();
 
@@ -1181,16 +1189,15 @@ class RB_Admin {
             require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
         }
 
-        $languages = RB_I18n::get_languages();
+        $admin_language = $this->get_admin_language();
         $locations = RB_I18n::get_locations();
+        $languages = RB_I18n::get_languages();
 
         // Default values
         $defaults = array(
             'working_hours_mode' => 'simple', // simple or advanced
             'opening_time' => '09:00',
             'closing_time' => '22:00',
-            'frontend_language' => 'vi',
-            'admin_language' => 'vi',
             'default_location' => 'vn',
             'lunch_break_enabled' => 'no',
             'lunch_break_start' => '14:00',
@@ -1234,7 +1241,6 @@ class RB_Admin {
                     <a href="#tab-booking" class="nav-tab">📅 Đặt bàn</a>
                     <a href="#tab-notifications" class="nav-tab">🔔 Thông báo</a>
                     <a href="#tab-policies" class="nav-tab">📋 Chính sách</a>
-                    <a href="#tab-language" class="nav-tab">🌐 Ngôn ngữ</a>
                     <a href="#tab-advanced" class="nav-tab">🔧 Nâng cao</a>
                 </h2>
                 
@@ -1383,8 +1389,36 @@ class RB_Admin {
                 <!-- Tab 2: Booking Settings -->
                 <div id="tab-booking" class="rb-tab-content" style="display: none;">
                     <h2>Cài đặt đặt bàn</h2>
-                    
+
+                    <p class="description">
+                        Plugin tự động sử dụng ngôn ngữ quản trị WordPress: <strong>
+                            <?php
+                            if (isset($languages[$admin_language])) {
+                                echo esc_html($languages[$admin_language]['flag'] . ' ' . $languages[$admin_language]['native']);
+                            } else {
+                                echo esc_html(strtoupper($admin_language));
+                            }
+                            ?>
+                        </strong>.
+                    </p>
+
                     <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="rb_default_location">Khu vực mặc định</label>
+                            </th>
+                            <td>
+                                <select name="rb_settings[default_location]" id="rb_default_location">
+                                    <?php foreach ($locations as $code => $location) : ?>
+                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['default_location'], $code); ?>>
+                                            <?php echo esc_html(RB_I18n::get_location_label($code, $this->get_admin_language())); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Khu vực mặc định hiển thị với khách khi mở form đặt bàn.</p>
+                            </td>
+                        </tr>
+
                         <tr>
                             <th scope="row">
                                 <label for="time_slot_interval">Khoảng thời gian mỗi slot</label>
@@ -1582,61 +1616,6 @@ class RB_Admin {
                                 <textarea name="rb_settings[special_closed_dates]" id="special_closed_dates" 
                                     rows="4" class="large-text" placeholder="Mỗi ngày một dòng (định dạng: YYYY-MM-DD)&#10;Ví dụ:&#10;2025-01-01&#10;2025-04-30&#10;2025-09-02"><?php echo esc_textarea($settings['special_closed_dates']); ?></textarea>
                                 <p class="description">Danh sách ngày nghỉ lễ, tết không nhận booking</p>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- Tab Language -->
-                <div id="tab-language" class="rb-tab-content" style="display: none;">
-                    <h2>Cài đặt ngôn ngữ</h2>
-
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row">
-                                <label for="rb_frontend_language">Ngôn ngữ mặc định cho khách</label>
-                            </th>
-                            <td>
-                                <select name="rb_settings[frontend_language]" id="rb_frontend_language">
-                                    <?php foreach ($languages as $code => $language) : ?>
-                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['frontend_language'], $code); ?>>
-                                            <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <p class="description">Ngôn ngữ mặc định cho biểu mẫu đặt bàn hiển thị với khách hàng.</p>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <th scope="row">
-                                <label for="rb_admin_language">Ngôn ngữ dành cho quản trị</label>
-                            </th>
-                            <td>
-                                <select name="rb_settings[admin_language]" id="rb_admin_language">
-                                    <?php foreach ($languages as $code => $language) : ?>
-                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['admin_language'], $code); ?>>
-                                            <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <p class="description">Ngôn ngữ sử dụng trong các trang quản trị của plugin.</p>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <th scope="row">
-                                <label for="rb_default_location">Khu vực mặc định</label>
-                            </th>
-                            <td>
-                                <select name="rb_settings[default_location]" id="rb_default_location">
-                                    <?php foreach ($locations as $code => $location) : ?>
-                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['default_location'], $code); ?>>
-                                            <?php echo esc_html(RB_I18n::get_location_label($code, $settings['admin_language'])); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <p class="description">Khu vực mặc định hiển thị cho khách khi mở form đặt bàn.</p>
                             </td>
                         </tr>
                     </table>
@@ -2030,8 +2009,6 @@ class RB_Admin {
             'working_hours_mode' => isset($settings['working_hours_mode']) ? sanitize_text_field($settings['working_hours_mode']) : 'simple',
             'opening_time' => isset($settings['opening_time']) ? sanitize_text_field($settings['opening_time']) : '09:00',
             'closing_time' => isset($settings['closing_time']) ? sanitize_text_field($settings['closing_time']) : '22:00',
-            'frontend_language' => isset($settings['frontend_language']) ? RB_I18n::sanitize_language($settings['frontend_language']) : 'vi',
-            'admin_language' => isset($settings['admin_language']) ? RB_I18n::sanitize_language($settings['admin_language']) : 'vi',
             'default_location' => isset($settings['default_location']) ? RB_I18n::sanitize_location($settings['default_location']) : 'vn',
             'lunch_break_enabled' => isset($settings['lunch_break_enabled']) ? 'yes' : 'no',
             'lunch_break_start' => isset($settings['lunch_break_start']) ? sanitize_text_field($settings['lunch_break_start']) : '14:00',

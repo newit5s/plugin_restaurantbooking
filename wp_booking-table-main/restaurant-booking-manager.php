@@ -41,8 +41,7 @@ function rb_activate_plugin() {
         'time_slot_interval' => 30,
         'admin_email' => get_option('admin_email'),
         'enable_email' => 'yes',
-        'frontend_language' => 'vi',
-        'admin_language' => 'vi'
+        'default_location' => 'vn'
     ));
     
     // Flush rewrite rules
@@ -144,12 +143,13 @@ function rb_frontend_enqueue_scripts() {
     wp_enqueue_style('rb-frontend-css', RB_PLUGIN_URL . 'assets/css/frontend.css', array(), RB_VERSION);
     wp_enqueue_script('rb-frontend-js', RB_PLUGIN_URL . 'assets/js/frontend.js', array('jquery'), RB_VERSION, true);
 
-    $settings = get_option('rb_settings', array());
-    $default_language = isset($settings['frontend_language']) ? $settings['frontend_language'] : 'vi';
-
     if (!class_exists('RB_I18n')) {
         require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
     }
+
+    $site_locale = function_exists('get_locale') ? get_locale() : 'vi';
+    $default_language = RB_I18n::get_language_from_locale($site_locale);
+    $fallback_language = RB_I18n::sanitize_language('vi');
 
     // Localize script for AJAX
     wp_localize_script('rb-frontend-js', 'rb_ajax', array(
@@ -158,7 +158,7 @@ function rb_frontend_enqueue_scripts() {
         'loading_text' => RB_I18n::translate('frontend', 'loading_text', $default_language),
         'error_text' => RB_I18n::translate('frontend', 'error_text', $default_language),
         'default_language' => $default_language,
-        'fallback_language' => 'vi',
+        'fallback_language' => $fallback_language,
         'languages' => RB_I18n::get_languages(),
         'translations' => RB_I18n::get_frontend_translations(),
     ));
