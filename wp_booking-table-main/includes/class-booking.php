@@ -66,13 +66,22 @@ class RB_Booking {
             'status' => 'pending',
             'booking_source' => 'website',
             'created_at' => current_time('mysql'),
-            'table_number' => null
+            'table_number' => null,
+            'language' => 'vi',
+            'location' => 'vn'
         );
 
         $data = wp_parse_args($data, $defaults);
 
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $data['language'] = isset($data['language']) ? RB_I18n::sanitize_language($data['language']) : 'vi';
+        $data['location'] = isset($data['location']) ? RB_I18n::sanitize_location($data['location']) : 'vn';
+
         // Validate required fields
-        $required = array('customer_name', 'customer_phone', 'customer_email', 'guest_count', 'booking_date', 'booking_time');
+        $required = array('customer_name', 'customer_phone', 'customer_email', 'guest_count', 'booking_date', 'booking_time', 'location');
 
         foreach ($required as $field) {
             if (empty($data[$field])) {
@@ -131,7 +140,12 @@ class RB_Booking {
         }
 
         // Chọn bàn nhỏ nhất đủ chỗ
-        $slot_table = $this->get_smallest_available_table($bk->booking_date, $bk->booking_time, (int)$bk->guest_count);
+        $slot_table = $this->get_smallest_available_table(
+            $bk->booking_date,
+            $bk->booking_time,
+            (int) $bk->guest_count,
+            isset($bk->location) ? $bk->location : 'vn'
+        );
         if (!$slot_table) {
             return new WP_Error('rb_no_table', 'Hết bàn phù hợp để xác nhận ở khung giờ này.');
         }
@@ -199,88 +213,125 @@ class RB_Booking {
         return $result;
     }
     
-    public function is_time_slot_available($date, $time, $guest_count, $exclude_booking_id = null) {
+    public function is_time_slot_available($date, $time, $guest_count, $location = 'vn', $exclude_booking_id = null) {
         global $wpdb;
         $tables_table = $wpdb->prefix . 'rb_tables';
         $bookings_table = $wpdb->prefix . 'rb_bookings';
 
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        if (is_numeric($location) && $exclude_booking_id === null) {
+            $exclude_booking_id = (int) $location;
+            $location = 'vn';
+        }
+
+        $location = RB_I18n::sanitize_location($location);
+
         // Tính tổng sức chứa
-        $total_capacity = (int) $wpdb->get_var(
-            "SELECT SUM(capacity) FROM {$tables_table} WHERE is_available = 1"
-        );
+        $total_capacity = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(capacity) FROM {$tables_table} WHERE is_available = 1 AND location = %s",
+            $location
+        ));
 
         if ($total_capacity <= 0) {
             return false;
         }
 
         // Tính tổng số khách đã book (pending + confirmed)
-        $exclude_sql = '';
-        if ($exclude_booking_id) {
-            $exclude_sql = $wpdb->prepare(' AND id != %d', (int)$exclude_booking_id);
-        }
-
-        $booked_guests = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT SUM(guest_count) 
+        $sql = "SELECT SUM(guest_count)
             FROM {$bookings_table}
             WHERE booking_date = %s
             AND booking_time = %s
-            AND status IN ('pending', 'confirmed')
-            {$exclude_sql}",
-            $date, $time
-        ));
+            AND location = %s
+            AND status IN ('pending', 'confirmed')";
+
+        $params = array($date, $time, $location);
+
+        if ($exclude_booking_id) {
+            $sql .= ' AND id != %d';
+            $params[] = (int) $exclude_booking_id;
+        }
+
+        $booked_guests = (int) $wpdb->get_var($wpdb->prepare($sql, $params));
 
         $remaining_capacity = $total_capacity - $booked_guests;
-        
+
         return $remaining_capacity >= $guest_count;
     }
 
-    public function get_smallest_available_table($date, $time, $guest_count) {
+    public function get_smallest_available_table($date, $time, $guest_count, $location = 'vn') {
         global $wpdb;
         $t = $wpdb->prefix . 'rb_tables';
         $b = $wpdb->prefix . 'rb_bookings';
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $location = RB_I18n::sanitize_location($location);
 
         $sql = $wpdb->prepare(
             "SELECT t.table_number, t.capacity
              FROM {$t} t
              WHERE t.is_available = 1
-               AND t.capacity >= %d
-               AND t.table_number NOT IN (
-                 SELECT b.table_number
-                 FROM {$b} b
-                 WHERE b.booking_date = %s
-                   AND b.booking_time = %s
-                   AND b.status IN ('confirmed', 'pending')
-                   AND b.table_number IS NOT NULL
-               )
+              AND t.location = %s
+              AND t.capacity >= %d
+              AND t.table_number NOT IN (
+                SELECT b.table_number
+                FROM {$b} b
+                WHERE b.booking_date = %s
+                  AND b.booking_time = %s
+                  AND b.location = %s
+                  AND b.status IN ('confirmed', 'pending')
+                  AND b.table_number IS NOT NULL
+              )
              ORDER BY t.capacity ASC, t.table_number ASC
              LIMIT 1",
-            (int)$guest_count, $date, $time
+            $location,
+            (int) $guest_count,
+            $date,
+            $time,
+            $location
         );
-        
+
         return $wpdb->get_row($sql);
     }
 
-    public function available_table_count($date, $time, $guest_count) {
+    public function available_table_count($date, $time, $guest_count, $location = 'vn') {
         global $wpdb;
         $t = $wpdb->prefix . 'rb_tables';
         $b = $wpdb->prefix . 'rb_bookings';
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $location = RB_I18n::sanitize_location($location);
 
         $sql = $wpdb->prepare(
             "SELECT COUNT(*)
              FROM {$t} x
              WHERE x.is_available = 1
-               AND x.capacity >= %d
-               AND x.table_number NOT IN (
-                 SELECT y.table_number
-                 FROM {$b} y
-                 WHERE y.booking_date = %s
-                   AND y.booking_time = %s
-                   AND y.status IN ('confirmed', 'pending')
-                   AND y.table_number IS NOT NULL
-               )",
-            (int)$guest_count, $date, $time
+              AND x.location = %s
+              AND x.capacity >= %d
+              AND x.table_number NOT IN (
+                SELECT y.table_number
+                FROM {$b} y
+                WHERE y.booking_date = %s
+                  AND y.booking_time = %s
+                  AND y.location = %s
+                  AND y.status IN ('confirmed', 'pending')
+                  AND y.table_number IS NOT NULL
+              )",
+            $location,
+            (int) $guest_count,
+            $date,
+            $time,
+            $location
         );
-        
+
         return (int) $wpdb->get_var($sql);
     }
 }
