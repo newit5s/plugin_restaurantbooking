@@ -80,6 +80,24 @@
             return widget.data('current-location') || widget.data('default-location') || 'vn';
         }
 
+        function goToStep(widget, step) {
+            var targetStep = step || 'language';
+            var steps = widget.find('.rb-step');
+
+            if (!steps.length) {
+                return;
+            }
+
+            var target = widget.find('.rb-step-' + targetStep);
+
+            steps.removeClass('active');
+
+            if (target.length) {
+                target.addClass('active');
+                widget.data('current-step', targetStep);
+            }
+        }
+
         function showAvailabilityMessage(form, state, message) {
             var $message = form.find('.rb-availability-message');
             if (!$message.length) {
@@ -109,16 +127,26 @@
 
         function invalidateAvailability(form, options) {
             var opts = options || {};
+            var widget = form.closest('.rb-booking-widget');
+
             form.data('availability-confirmed', false);
             toggleContactFields(form, false);
             setSubmitEnabled(form, false);
+
+            if (widget.length) {
+                widget.find('.rb-go-to-details').prop('disabled', true);
+
+                if (!opts.skipStepReset && widget.find('.rb-step').length && widget.data('current-step') === 'details') {
+                    goToStep(widget, 'schedule');
+                }
+            }
 
             if (!opts.keepAvailabilityMessage) {
                 showAvailabilityMessage(form, '', '');
             }
 
             if (opts.messageKey && !opts.silent) {
-                var language = getWidgetLanguage(form.closest('.rb-booking-widget'));
+                var language = getWidgetLanguage(widget);
                 var message = getTranslation(language, opts.messageKey);
                 if (message) {
                     showAvailabilityMessage(form, 'error', message);
@@ -136,6 +164,12 @@
             setSubmitEnabled(form, true);
             showAvailabilityMessage(form, 'success', message || fallbackMessage || '');
             form.find('.rb-form-message').removeClass('error').hide();
+            if (widget.length) {
+                widget.find('.rb-go-to-details').prop('disabled', false);
+                if (widget.find('.rb-step').length) {
+                    goToStep(widget, 'details');
+                }
+            }
         }
 
         function updateWidgetLocation(widget, location, options) {
@@ -273,7 +307,7 @@
                     }
                     form.find('input[name="booking_location"]').val(location);
                     form.find('input[name="booking_language"]').val(language);
-                    invalidateAvailability(form, {silent: true});
+                    invalidateAvailability(form, {silent: true, skipStepReset: true});
                     form.data('availability-confirmed', false);
                 } else if (response && response.data && response.data.message) {
                     $message.removeClass('success').addClass('error').html(response.data.message).show();
@@ -291,7 +325,11 @@
         function initializeForm(widget, form, options) {
             var opts = options || {};
             form.find('.rb-form-message').removeClass('success error').hide().empty();
-            invalidateAvailability(form, {silent: opts.silent, keepAvailabilityMessage: opts.keepAvailabilityMessage});
+            invalidateAvailability(form, {
+                silent: opts.silent,
+                keepAvailabilityMessage: opts.keepAvailabilityMessage,
+                skipStepReset: true
+            });
             toggleContactFields(form, false);
             setSubmitEnabled(form, false);
             form.find('input[name="booking_language"]').val(getWidgetLanguage(widget));
@@ -308,6 +346,7 @@
 
             updateWidgetLanguage(widget, widget.data('default-language') || defaultLanguage);
             updateWidgetLocation(widget, widget.data('default-location') || 'vn', {silent: true});
+            goToStep(widget, 'language');
         }
 
         $('.rb-booking-widget').each(function() {
@@ -328,6 +367,8 @@
                 initializeForm(widget, $(this), {silent: true});
             });
 
+            goToStep(widget, 'language');
+
             widget.on('click', '.rb-language-option', function(e) {
                 e.preventDefault();
                 var lang = $(this).data('lang');
@@ -336,6 +377,7 @@
                     widget.find('form.rb-form').each(function() {
                         $(this).find('input[name="booking_language"]').val(lang);
                     });
+                    goToStep(widget, 'schedule');
                 }
             });
 
@@ -345,6 +387,30 @@
                 if (loc) {
                     updateWidgetLocation(widget, loc, {messageKey: 'availability_precheck_required'});
                 }
+            });
+
+            widget.on('click', '.rb-go-to-details', function(e) {
+                e.preventDefault();
+                if ($(this).prop('disabled')) {
+                    return;
+                }
+                goToStep(widget, 'details');
+            });
+
+            widget.on('click', '.rb-step-back', function(e) {
+                e.preventDefault();
+                var target = $(this).data('prev-step');
+                if (!target) {
+                    return;
+                }
+
+                if (target === 'language') {
+                    widget.find('form.rb-form').each(function() {
+                        invalidateAvailability($(this), {silent: true, skipStepReset: true});
+                    });
+                }
+
+                goToStep(widget, target);
             });
 
             widget.on('click', '.rb-check-availability', function(e) {
@@ -379,6 +445,7 @@
                     e.preventDefault();
                     modal.addClass('show');
                     $('body').css('overflow', 'hidden');
+                    goToStep(widget, 'language');
                 });
             }
 

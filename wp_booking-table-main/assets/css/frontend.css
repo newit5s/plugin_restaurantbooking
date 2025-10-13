@@ -71,7 +71,7 @@
     }
 }
 
-.rb-modal-content h2 {
+.rb-modal-title {
     background: #2a2318;
     color: #e8e8e8;
     margin: 0;
@@ -81,11 +81,52 @@
     border-bottom: 2px solid #8b6f47;
 }
 
+
+.rb-step {
+    display: none;
+    background: #1a1a1a;
+    padding: 25px 30px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.rb-step.active {
+    display: block;
+}
+
+.rb-step-language {
+    padding-bottom: 20px;
+}
+
+.rb-step:last-of-type {
+    border-bottom: none;
+}
+
+.rb-step-intro h3 {
+    margin: 0 0 8px;
+    color: #e8e8e8;
+    font-size: 18px;
+}
+
+.rb-step-intro p {
+    margin: 0 0 18px;
+    color: #bcbcbc;
+    font-size: 14px;
+}
+
 .rb-language-selector,
 .rb-location-selector {
     padding: 20px 30px 10px;
     background: #211a11;
-    border-bottom: 1px solid #3a3a3a;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+}
+
+.rb-location-selector {
+    margin-top: 20px;
+}
+
+.rb-step-language .rb-language-selector {
+    border-radius: 8px;
 }
 
 .rb-inline-form .rb-language-selector,
@@ -96,7 +137,9 @@
 }
 
 .rb-language-selector h3,
-.rb-location-selector h3 {
+.rb-language-selector h4,
+.rb-location-selector h3,
+.rb-location-selector h4 {
     margin: 0 0 5px;
     color: #e8e8e8;
     font-size: 18px;
@@ -173,6 +216,11 @@
     background: #1a1a1a;
 }
 
+.rb-modal-content .rb-form {
+    padding: 0;
+    background: transparent;
+}
+
 .rb-section {
     margin-bottom: 25px;
 }
@@ -247,6 +295,21 @@
     margin-top: 30px;
     padding-top: 20px;
     border-top: 1px solid #3a3a3a;
+}
+
+.rb-step-details .rb-form-actions .rb-step-back {
+    margin-right: auto;
+}
+
+.rb-step-navigation {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-top: 25px;
+}
+
+.rb-step-navigation .rb-go-to-details {
+    margin-left: auto;
 }
 
 /* Buttons */
@@ -417,18 +480,31 @@
         width: 95%;
         margin: 10px auto;
     }
-    
+
     .rb-form-row {
         flex-direction: column;
         gap: 0;
     }
-    
+
     .rb-form {
         padding: 20px;
     }
-    
+
     .rb-form-actions {
         flex-direction: column;
+    }
+
+    .rb-step-details .rb-form-actions .rb-step-back {
+        margin-right: 0;
+    }
+
+    .rb-step-navigation {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rb-step-navigation .rb-go-to-details {
+        margin-left: 0;
     }
     
     .rb-btn-primary,
@@ -443,11 +519,11 @@
 }
 
 @media (max-width: 480px) {
-    .rb-modal-content h2 {
+    .rb-modal-title {
         font-size: 20px;
         padding: 15px 20px;
     }
-    
+
     .rb-form {
         padding: 15px;
     }
