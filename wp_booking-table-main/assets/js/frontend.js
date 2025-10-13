@@ -1,125 +1,159 @@
 /**
- * Restaurant Booking - Frontend JavaScript
+ * Restaurant Booking - Frontend JavaScript with language support
  */
 
 (function($) {
     'use strict';
-    
+
     $(document).ready(function() {
-        
-        // Modal handling
-        var modal = $('#rb-booking-modal');
-        var openBtn = $('.rb-open-modal-btn');
-        var closeBtn = $('.rb-close, .rb-close-modal');
-        
-        // Open modal
-        openBtn.on('click', function(e) {
-            e.preventDefault();
-            modal.addClass('show');
-            $('body').css('overflow', 'hidden');
-        });
-        
-        // Close modal
-        closeBtn.on('click', function(e) {
-            e.preventDefault();
-            modal.removeClass('show');
-            $('body').css('overflow', 'auto');
-            resetForm();
-        });
-        
-        // Close modal when clicking outside
-        $(window).on('click', function(e) {
-            if ($(e.target).is(modal)) {
-                modal.removeClass('show');
-                $('body').css('overflow', 'auto');
-                resetForm();
+        var translations = rb_ajax.translations || {};
+        var fallbackLanguage = rb_ajax.fallback_language || 'vi';
+        var defaultLanguage = rb_ajax.default_language || fallbackLanguage;
+
+        function getTranslationsFor(language) {
+            var lang = language || defaultLanguage;
+            var fallback = translations[fallbackLanguage] || {};
+            var current = translations[lang] || {};
+            return $.extend({}, fallback, current);
+        }
+
+        function getTranslation(language, key) {
+            var map = getTranslationsFor(language);
+            return map[key] || '';
+        }
+
+        function applyTranslations(language, context) {
+            var langMap = getTranslationsFor(language);
+            var $context = context || $(document);
+
+            $context.find('[data-lang-key]').each(function() {
+                var $el = $(this);
+                var key = $el.data('lang-key');
+                var attr = $el.data('lang-attr') || 'text';
+                var value = langMap[key];
+
+                if (value === undefined) {
+                    return;
+                }
+
+                if (key === 'guest_option') {
+                    var count = $el.data('count');
+                    if (typeof count !== 'undefined') {
+                        value = value.replace('%d', count);
+                    }
+                }
+
+                switch (attr) {
+                    case 'text':
+                        $el.text(value);
+                        break;
+                    case 'html':
+                        $el.html(value);
+                        break;
+                    case 'value':
+                        $el.val(value);
+                        break;
+                    case 'placeholder':
+                        $el.attr('placeholder', value);
+                        break;
+                    case 'aria-label':
+                        $el.attr('aria-label', value);
+                        break;
+                    default:
+                        $el.text(value);
+                        break;
+                }
+            });
+        }
+
+        function updateWidgetLanguage(widget, language) {
+            var lang = language || defaultLanguage;
+            widget.data('current-language', lang);
+            applyTranslations(lang, widget);
+            widget.find('input[name="booking_language"]').val(lang);
+            widget.find('.rb-language-option').removeClass('active');
+            widget.find('.rb-language-option[data-lang="' + lang + '"]').addClass('active');
+        }
+
+        function getWidgetLanguage(widget) {
+            return widget.data('current-language') || widget.data('default-language') || defaultLanguage;
+        }
+
+        function resetForm(widget) {
+            if (!widget || !widget.length) {
+                return;
             }
-        });
-        
-        // Handle booking form submission (modal)
-        $('#rb-booking-form').on('submit', function(e) {
-            e.preventDefault();
-            submitBookingForm($(this), '#rb-form-message');
-        });
-        
-        // Handle inline form submission
-        $('#rb-booking-form-inline').on('submit', function(e) {
-            e.preventDefault();
-            submitBookingForm($(this), '#rb-form-message-inline');
-        });
-        
-        // Date change - update available times
-        $('#rb_booking_date, #rb_date_inline').on('change', function() {
-            var date = $(this).val();
-            var guestCount = $(this).closest('form').find('[name="guest_count"]').val();
-            var timeSelect = $(this).closest('form').find('[name="booking_time"]');
-            
-            if (date && guestCount) {
-                updateAvailableTimeSlots(date, guestCount, timeSelect);
+
+            var modalForm = widget.find('#rb-booking-form');
+            if (modalForm.length && modalForm[0]) {
+                modalForm[0].reset();
             }
-        });
-        
-        // Guest count change - update available times
-        $('#rb_guest_count, #rb_guests_inline').on('change', function() {
-            var guestCount = $(this).val();
-            var date = $(this).closest('form').find('[name="booking_date"]').val();
-            var timeSelect = $(this).closest('form').find('[name="booking_time"]');
-            
-            if (date && guestCount) {
-                updateAvailableTimeSlots(date, guestCount, timeSelect);
+
+            var inlineForm = widget.find('#rb-booking-form-inline');
+            if (inlineForm.length && inlineForm[0]) {
+                inlineForm[0].reset();
             }
-        });
-        
-        // Check availability button
-        $('#rb-check-availability').on('click', function(e) {
-            e.preventDefault();
-            checkAvailability();
-        });
-        
-        // Submit booking form
+
+            widget.find('.rb-form-message').removeClass('success error').hide().empty();
+            widget.find('#rb-availability-result').removeClass('success error').hide().empty();
+
+            updateWidgetLanguage(widget, widget.data('default-language') || defaultLanguage);
+        }
+
         function submitBookingForm(form, messageContainer) {
+            var widget = form.closest('.rb-booking-widget');
+            var language = getWidgetLanguage(widget);
+            var loadingText = getTranslation(language, 'loading_text') || rb_ajax.loading_text;
+            var errorText = getTranslation(language, 'error_text') || rb_ajax.error_text;
+            var phoneInvalidText = getTranslation(language, 'phone_invalid');
+
+            var phoneField = form.find('input[type="tel"]');
+            var phone = phoneField.val();
+            if (phone && !/^[0-9]{6,15}$/.test(phone)) {
+                $(messageContainer)
+                    .removeClass('success')
+                    .addClass('error')
+                    .html(phoneInvalidText || errorText)
+                    .show();
+                return;
+            }
+
             var formData = form.serialize();
             var submitBtn = form.find('[type="submit"]');
             var originalText = submitBtn.text();
-            
-            // Show loading state
-            submitBtn.text(rb_ajax.loading_text).prop('disabled', true);
+
+            submitBtn.text(loadingText).prop('disabled', true);
             form.addClass('rb-loading');
-            
-            // Clear previous messages
+
             $(messageContainer).removeClass('success error').hide();
-            
-            // AJAX request
+
             $.ajax({
                 url: rb_ajax.ajax_url,
                 type: 'POST',
                 data: formData + '&action=rb_submit_booking&rb_nonce=' + form.find('[name="rb_nonce"], [name="rb_nonce_inline"]').val(),
                 success: function(response) {
                     if (response.success) {
-                        // Show success message
                         $(messageContainer)
                             .removeClass('error')
                             .addClass('success')
                             .html(response.data.message)
                             .show();
-                        
-                        // Reset form
-                        form[0].reset();
-                        
-                        // Close modal after 3 seconds if it's open
+
+                        if (form.length && form[0]) {
+                            form[0].reset();
+                        }
+
+                        var modal = widget.find('#rb-booking-modal');
                         if (modal.hasClass('show')) {
                             setTimeout(function() {
                                 modal.removeClass('show');
                                 $('body').css('overflow', 'auto');
-                                resetForm();
+                                resetForm(widget);
                             }, 3000);
                         }
-                        
-                        // Trigger custom event
+
                         $(document).trigger('rb_booking_success', [response.data]);
-                        
                     } else {
-                        // Show error message
                         $(messageContainer)
                             .removeClass('success')
                             .addClass('error')
@@ -127,23 +161,27 @@
                             .show();
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function() {
                     $(messageContainer)
                         .removeClass('success')
                         .addClass('error')
-                        .html(rb_ajax.error_text)
+                        .html(errorText)
                         .show();
                 },
                 complete: function() {
-                    // Remove loading state
                     submitBtn.text(originalText).prop('disabled', false);
                     form.removeClass('rb-loading');
                 }
             });
         }
-        
-        // Update available time slots
+
         function updateAvailableTimeSlots(date, guestCount, timeSelect) {
+            var form = timeSelect.closest('form');
+            var widget = form.closest('.rb-booking-widget');
+            var language = getWidgetLanguage(widget);
+            var placeholder = getTranslation(language, 'select_time_placeholder');
+            var noSlots = getTranslation(language, 'no_slots');
+
             $.ajax({
                 url: rb_ajax.ajax_url,
                 type: 'POST',
@@ -155,48 +193,53 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        var slots = response.data.slots;
+                        var slots = response.data.slots || [];
                         var currentValue = timeSelect.val();
-                        
-                        // Clear and rebuild options
+
                         timeSelect.empty();
-                        timeSelect.append('<option value="">Chọn giờ</option>');
-                        
+                        timeSelect.append('<option value="">' + (placeholder || '') + '</option>');
+
                         if (slots.length > 0) {
                             $.each(slots, function(i, slot) {
                                 var selected = (slot === currentValue) ? ' selected' : '';
                                 timeSelect.append('<option value="' + slot + '"' + selected + '>' + slot + '</option>');
                             });
                         } else {
-                            timeSelect.append('<option value="">Không có giờ trống</option>');
+                            timeSelect.append('<option value="">' + (noSlots || '') + '</option>');
                         }
                     }
                 }
             });
         }
-        
-        // Check availability
+
         function checkAvailability() {
             var date = $('#rb_booking_date').val();
             var time = $('#rb_booking_time').val();
             var guests = $('#rb_guest_count').val();
             var resultDiv = $('#rb-availability-result');
-            
+            var language = $('#rb_booking_language').val() || defaultLanguage;
+            var fillAll = getTranslation(language, 'availability_fill_all');
+            var checking = getTranslation(language, 'availability_checking');
+            var errorText = getTranslation(language, 'availability_error');
+
+            if (!resultDiv.length) {
+                return;
+            }
+
             if (!date || !time || !guests) {
                 resultDiv
                     .removeClass('success')
                     .addClass('error')
-                    .html('Vui lòng chọn đầy đủ ngày, giờ và số khách')
+                    .html(fillAll || '')
                     .show();
                 return;
             }
-            
-            // Show loading
+
             resultDiv
                 .removeClass('success error')
-                .html('Đang kiểm tra...')
+                .html(checking || '')
                 .show();
-            
+
             $.ajax({
                 url: rb_ajax.ajax_url,
                 type: 'POST',
@@ -205,6 +248,7 @@
                     date: date,
                     time: time,
                     guests: guests,
+                    language: language,
                     nonce: rb_ajax.nonce
                 },
                 success: function(response) {
@@ -231,71 +275,113 @@
                     resultDiv
                         .removeClass('success')
                         .addClass('error')
-                        .html('Có lỗi xảy ra. Vui lòng thử lại.');
+                        .html(errorText || '')
+                        .show();
                 }
             });
         }
-        
-        // Reset form
-        function resetForm() {
-            $('#rb-booking-form')[0].reset();
-            $('#rb-form-message').removeClass('success error').hide();
-            $('#rb-availability-result').removeClass('success error').hide();
-        }
-        
-        // Form validation
-        $('#rb-booking-form, #rb-booking-form-inline').find('input[type="tel"]').on('input', function() {
-            // Only allow numbers
+
+        $('.rb-booking-widget').each(function() {
+            var widget = $(this);
+            var modal = widget.find('#rb-booking-modal');
+            var openBtn = widget.find('.rb-open-modal-btn');
+            var closeBtn = modal.find('.rb-close, .rb-close-modal');
+            var defaultLang = widget.data('default-language') || defaultLanguage;
+
+            widget.data('default-language', defaultLang);
+            updateWidgetLanguage(widget, defaultLang);
+
+            widget.on('click', '.rb-language-option', function(e) {
+                e.preventDefault();
+                var lang = $(this).data('lang');
+                if (lang) {
+                    updateWidgetLanguage(widget, lang);
+                }
+            });
+
+            openBtn.on('click', function(e) {
+                e.preventDefault();
+                modal.addClass('show');
+                $('body').css('overflow', 'hidden');
+            });
+
+            closeBtn.on('click', function(e) {
+                e.preventDefault();
+                modal.removeClass('show');
+                $('body').css('overflow', 'auto');
+                resetForm(widget);
+            });
+
+            $(window).on('click', function(e) {
+                if ($(e.target).is(modal)) {
+                    modal.removeClass('show');
+                    $('body').css('overflow', 'auto');
+                    resetForm(widget);
+                }
+            });
+        });
+
+        $(document).on('submit', '#rb-booking-form', function(e) {
+            e.preventDefault();
+            submitBookingForm($(this), '#rb-form-message');
+        });
+
+        $(document).on('submit', '#rb-booking-form-inline', function(e) {
+            e.preventDefault();
+            submitBookingForm($(this), '#rb-form-message-inline');
+        });
+
+        $(document).on('change', '#rb_booking_date, #rb_date_inline', function() {
+            var date = $(this).val();
+            var guestCount = $(this).closest('form').find('[name="guest_count"]').val();
+            var timeSelect = $(this).closest('form').find('[name="booking_time"]');
+
+            if (date && guestCount) {
+                updateAvailableTimeSlots(date, guestCount, timeSelect);
+            }
+        });
+
+        $(document).on('change', '#rb_guest_count, #rb_guests_inline', function() {
+            var guestCount = $(this).val();
+            var date = $(this).closest('form').find('[name="booking_date"]').val();
+            var timeSelect = $(this).closest('form').find('[name="booking_time"]');
+
+            if (date && guestCount) {
+                updateAvailableTimeSlots(date, guestCount, timeSelect);
+            }
+        });
+
+        $('#rb-check-availability').on('click', function(e) {
+            e.preventDefault();
+            checkAvailability();
+        });
+
+        $(document).on('input', '#rb-booking-form input[type="tel"], #rb-booking-form-inline input[type="tel"]', function() {
             this.value = this.value.replace(/[^0-9]/g, '');
         });
-        
-        // Set minimum date to today
+
         var today = new Date();
         var dd = String(today.getDate()).padStart(2, '0');
         var mm = String(today.getMonth() + 1).padStart(2, '0');
         var yyyy = today.getFullYear();
         today = yyyy + '-' + mm + '-' + dd;
-        
+
         $('#rb_booking_date, #rb_date_inline').attr('min', today);
-        
-        // Set maximum date to 30 days from now
+
         var maxDate = new Date();
         maxDate.setDate(maxDate.getDate() + 30);
         var maxDd = String(maxDate.getDate()).padStart(2, '0');
         var maxMm = String(maxDate.getMonth() + 1).padStart(2, '0');
         var maxYyyy = maxDate.getFullYear();
         maxDate = maxYyyy + '-' + maxMm + '-' + maxDd;
-        
+
         $('#rb_booking_date, #rb_date_inline').attr('max', maxDate);
-        
-        // Enhanced phone validation
-        $('#rb-booking-form, #rb-booking-form-inline').on('submit', function(e) {
-            var phone = $(this).find('input[type="tel"]').val();
-            
-            // Vietnamese phone number validation
-            if (!/^(0[3|5|7|8|9])+([0-9]{8})$/.test(phone)) {
-                e.preventDefault();
-                
-                var messageContainer = $(this).attr('id') === 'rb-booking-form' ? 
-                    '#rb-form-message' : '#rb-form-message-inline';
-                    
-                $(messageContainer)
-                    .removeClass('success')
-                    .addClass('error')
-                    .html('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam hợp lệ.')
-                    .show();
-                    
-                return false;
-            }
-        });
-        
-        // Auto-hide messages after 10 seconds
+
         $(document).on('rb_booking_success', function() {
             setTimeout(function() {
                 $('.rb-form-message').fadeOut();
             }, 10000);
         });
-        
     });
-    
+
 })(jQuery);

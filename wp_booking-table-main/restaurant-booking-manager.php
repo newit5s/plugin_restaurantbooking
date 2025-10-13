@@ -29,6 +29,7 @@ register_activation_hook(__FILE__, 'rb_activate_plugin');
 function rb_activate_plugin() {
     // Load database class và tạo tables
     require_once RB_PLUGIN_DIR . 'includes/class-database.php';
+    require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
     $database = new RB_Database();
     $database->create_tables();
     
@@ -39,7 +40,9 @@ function rb_activate_plugin() {
         'closing_time' => '22:00',
         'time_slot_interval' => 30,
         'admin_email' => get_option('admin_email'),
-        'enable_email' => 'yes'
+        'enable_email' => 'yes',
+        'frontend_language' => 'vi',
+        'admin_language' => 'vi'
     ));
     
     // Flush rewrite rules
@@ -140,13 +143,24 @@ add_action('wp_enqueue_scripts', 'rb_frontend_enqueue_scripts');
 function rb_frontend_enqueue_scripts() {
     wp_enqueue_style('rb-frontend-css', RB_PLUGIN_URL . 'assets/css/frontend.css', array(), RB_VERSION);
     wp_enqueue_script('rb-frontend-js', RB_PLUGIN_URL . 'assets/js/frontend.js', array('jquery'), RB_VERSION, true);
-    
+
+    $settings = get_option('rb_settings', array());
+    $default_language = isset($settings['frontend_language']) ? $settings['frontend_language'] : 'vi';
+
+    if (!class_exists('RB_I18n')) {
+        require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+    }
+
     // Localize script for AJAX
     wp_localize_script('rb-frontend-js', 'rb_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rb_frontend_nonce'),
-        'loading_text' => __('Đang xử lý...', 'restaurant-booking'),
-        'error_text' => __('Có lỗi xảy ra. Vui lòng thử lại.', 'restaurant-booking')
+        'loading_text' => RB_I18n::translate('frontend', 'loading_text', $default_language),
+        'error_text' => RB_I18n::translate('frontend', 'error_text', $default_language),
+        'default_language' => $default_language,
+        'fallback_language' => 'vi',
+        'languages' => RB_I18n::get_languages(),
+        'translations' => RB_I18n::get_frontend_translations(),
     ));
 }
 

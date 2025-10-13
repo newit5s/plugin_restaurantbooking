@@ -22,88 +22,114 @@ class RB_Frontend {
     }
     
     public function render_booking_form($atts) {
-        $atts = shortcode_atts(array(
-            'title' => 'Đặt bàn nhà hàng',
-            'button_text' => 'Đặt bàn ngay',
-            'show_button' => 'yes'
-        ), $atts, 'restaurant_booking');
-        
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
         $settings = get_option('rb_settings', array(
             'opening_time' => '09:00',
-            'closing_time' => '22:00', 
-            'time_slot_interval' => 30
+            'closing_time' => '22:00',
+            'time_slot_interval' => 30,
+            'frontend_language' => 'vi',
         ));
-        
+
+        $default_language = isset($settings['frontend_language']) ? RB_I18n::sanitize_language($settings['frontend_language']) : 'vi';
+        $translations = RB_I18n::get_section_translations('frontend', $default_language);
+        $languages = RB_I18n::get_languages();
+
+        $atts = shortcode_atts(array(
+            'title' => $translations['modal_title'],
+            'button_text' => $translations['button_text'],
+            'show_button' => 'yes'
+        ), $atts, 'restaurant_booking');
+
+        static $instance = 0;
+        $instance++;
+        $widget_id = 'rb-widget-' . $instance;
+
         $opening_time = isset($settings['opening_time']) ? $settings['opening_time'] : '09:00';
         $closing_time = isset($settings['closing_time']) ? $settings['closing_time'] : '22:00';
         $time_interval = isset($settings['time_slot_interval']) ? intval($settings['time_slot_interval']) : 30;
-        
+
         $time_slots = $this->generate_time_slots($opening_time, $closing_time, $time_interval);
-        
+
         ob_start();
         ?>
-        <div class="rb-booking-widget">
+        <div class="rb-booking-widget" data-rb-widget="<?php echo esc_attr($widget_id); ?>" data-default-language="<?php echo esc_attr($default_language); ?>">
             <?php if ($atts['show_button'] === 'yes') : ?>
-                <button type="button" class="rb-open-modal-btn">
-                    <?php echo esc_html($atts['button_text']); ?>
+                <button type="button" class="rb-open-modal-btn" data-lang-key="button_text" data-lang-attr="text">
+                    <?php echo esc_html($translations['button_text']); ?>
                 </button>
             <?php endif; ?>
-            
+
             <div id="rb-booking-modal" class="rb-modal">
                 <div class="rb-modal-content">
-                    <span class="rb-close">&times;</span>
-                    <h2><?php echo esc_html($atts['title']); ?></h2>
-                    
-                    <form id="rb-booking-form" class="rb-form">
+                    <span class="rb-close" aria-label="Close">&times;</span>
+
+                    <div class="rb-language-selector">
+                        <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
+                        <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
+                        <div class="rb-language-options">
+                            <?php foreach ($languages as $code => $language) : ?>
+                                <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
+                                    <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <h2 data-lang-key="modal_title" data-lang-attr="text"><?php echo esc_html($translations['modal_title']); ?></h2>
+
+                    <form id="rb-booking-form" class="rb-form" data-default-language="<?php echo esc_attr($default_language); ?>">
                         <?php wp_nonce_field('rb_booking_nonce', 'rb_nonce'); ?>
-                        
+                        <input type="hidden" name="booking_language" id="rb_booking_language" value="<?php echo esc_attr($default_language); ?>">
+
                         <div class="rb-form-row">
                             <div class="rb-form-group">
-                                <label for="rb_customer_name">Họ và tên *</label>
+                                <label for="rb_customer_name" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
                                 <input type="text" id="rb_customer_name" name="customer_name" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_customer_phone">Số điện thoại *</label>
+                                <label for="rb_customer_phone" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
                                 <input type="tel" id="rb_customer_phone" name="customer_phone" required>
                             </div>
                         </div>
-                        
+
                         <div class="rb-form-row">
                             <div class="rb-form-group">
-                                <label for="rb_customer_email">Email *</label>
+                                <label for="rb_customer_email" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
                                 <input type="email" id="rb_customer_email" name="customer_email" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_guest_count">Số lượng khách *</label>
+                                <label for="rb_guest_count" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
                                 <select id="rb_guest_count" name="guest_count" required>
                                     <?php for ($i = 1; $i <= 20; $i++) : ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?> người</option>
+                                        <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
                                     <?php endfor; ?>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="rb-form-row">
                             <div class="rb-form-group">
-                                <label for="rb_booking_date">Ngày đặt bàn *</label>
-                                <?php 
-                                $settings = get_option('rb_settings', array());
+                                <label for="rb_booking_date" data-lang-key="booking_date_label" data-lang-attr="text"><?php echo esc_html($translations['booking_date_label']); ?></label>
+                                <?php
                                 $max_days = isset($settings['max_advance_booking']) ? intval($settings['max_advance_booking']) : 30;
                                 $min_hours = isset($settings['min_advance_booking']) ? intval($settings['min_advance_booking']) : 2;
                                 $min_date = date('Y-m-d', strtotime("+{$min_hours} hours"));
                                 $max_date = date('Y-m-d', strtotime("+{$max_days} days"));
                                 ?>
-                                <input type="date" id="rb_booking_date" name="booking_date" 
-                                    min="<?php echo $min_date; ?>" 
+                                <input type="date" id="rb_booking_date" name="booking_date"
+                                    min="<?php echo $min_date; ?>"
                                     max="<?php echo $max_date; ?>" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_booking_time">Giờ đặt bàn *</label>
+                                <label for="rb_booking_time" data-lang-key="booking_time_label" data-lang-attr="text"><?php echo esc_html($translations['booking_time_label']); ?></label>
                                 <select id="rb_booking_time" name="booking_time" required>
-                                    <option value="">Chọn giờ</option>
+                                    <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
                                     <?php if (!empty($time_slots)) : ?>
                                         <?php foreach ($time_slots as $slot) : ?>
                                             <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
@@ -112,64 +138,77 @@ class RB_Frontend {
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="rb-form-group">
-                            <label for="rb_special_requests">Yêu cầu đặc biệt</label>
+                            <label for="rb_special_requests" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
                             <textarea id="rb_special_requests" name="special_requests" rows="3"></textarea>
                         </div>
-                        
+
                         <div class="rb-form-actions">
-                            <button type="submit" class="rb-btn-primary">Xác nhận đặt bàn</button>
-                            <button type="button" class="rb-btn-cancel rb-close-modal">Hủy</button>
+                            <button type="submit" class="rb-btn-primary" data-lang-key="submit_button" data-lang-attr="text"><?php echo esc_html($translations['submit_button']); ?></button>
+                            <button type="button" class="rb-btn-cancel rb-close-modal" data-lang-key="cancel_button" data-lang-attr="text"><?php echo esc_html($translations['cancel_button']); ?></button>
                         </div>
-                        
-                        <div id="rb-form-message"></div>
+
+                        <div id="rb-form-message" class="rb-form-message"></div>
                     </form>
                 </div>
             </div>
-            
+
             <?php if ($atts['show_button'] === 'no') : ?>
-                <div class="rb-inline-form">
-                    <h3><?php echo esc_html($atts['title']); ?></h3>
-                    <form id="rb-booking-form-inline" class="rb-form">
+                <div class="rb-inline-form" data-lang-scope>
+                    <div class="rb-language-selector">
+                        <h3 data-lang-key="language_selection_title" data-lang-attr="text"><?php echo esc_html($translations['language_selection_title']); ?></h3>
+                        <p data-lang-key="language_selection_description" data-lang-attr="text"><?php echo esc_html($translations['language_selection_description']); ?></p>
+                        <div class="rb-language-options">
+                            <?php foreach ($languages as $code => $language) : ?>
+                                <button type="button" class="rb-language-option<?php echo $code === $default_language ? ' active' : ''; ?>" data-lang="<?php echo esc_attr($code); ?>">
+                                    <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <h3 class="rb-inline-form-title" data-lang-key="inline_title" data-lang-attr="text"><?php echo esc_html($translations['inline_title']); ?></h3>
+                    <form id="rb-booking-form-inline" class="rb-form" data-default-language="<?php echo esc_attr($default_language); ?>">
                         <?php wp_nonce_field('rb_booking_nonce', 'rb_nonce_inline'); ?>
-                        
+                        <input type="hidden" name="booking_language" id="rb_booking_language_inline" value="<?php echo esc_attr($default_language); ?>">
+
                         <div class="rb-form-grid">
                             <div class="rb-form-group">
-                                <label for="rb_name_inline">Họ và tên *</label>
+                                <label for="rb_name_inline" data-lang-key="customer_name_label" data-lang-attr="text"><?php echo esc_html($translations['customer_name_label']); ?></label>
                                 <input type="text" id="rb_name_inline" name="customer_name" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_phone_inline">Số điện thoại *</label>
+                                <label for="rb_phone_inline" data-lang-key="customer_phone_label" data-lang-attr="text"><?php echo esc_html($translations['customer_phone_label']); ?></label>
                                 <input type="tel" id="rb_phone_inline" name="customer_phone" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_email_inline">Email *</label>
+                                <label for="rb_email_inline" data-lang-key="customer_email_label" data-lang-attr="text"><?php echo esc_html($translations['customer_email_label']); ?></label>
                                 <input type="email" id="rb_email_inline" name="customer_email" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_guests_inline">Số khách *</label>
+                                <label for="rb_guests_inline" data-lang-key="guest_count_label" data-lang-attr="text"><?php echo esc_html($translations['guest_count_label']); ?></label>
                                 <select id="rb_guests_inline" name="guest_count" required>
                                     <?php for ($i = 1; $i <= 20; $i++) : ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?> người</option>
+                                        <option value="<?php echo $i; ?>" data-lang-key="guest_option" data-lang-attr="text" data-count="<?php echo $i; ?>"><?php echo esc_html(sprintf($translations['guest_option'], $i)); ?></option>
                                     <?php endfor; ?>
                                 </select>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_date_inline">Ngày *</label>
-                                <input type="date" id="rb_date_inline" name="booking_date" 
+                                <label for="rb_date_inline" data-lang-key="inline_date_label" data-lang-attr="text"><?php echo esc_html($translations['inline_date_label']); ?></label>
+                                <input type="date" id="rb_date_inline" name="booking_date"
                                        min="<?php echo date('Y-m-d'); ?>"
                                        max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>" required>
                             </div>
-                            
+
                             <div class="rb-form-group">
-                                <label for="rb_time_inline">Giờ *</label>
+                                <label for="rb_time_inline" data-lang-key="inline_time_label" data-lang-attr="text"><?php echo esc_html($translations['inline_time_label']); ?></label>
                                 <select id="rb_time_inline" name="booking_time" required>
-                                    <option value="">Chọn giờ</option>
+                                    <option value="" data-lang-key="select_time_placeholder" data-lang-attr="text"><?php echo esc_html($translations['select_time_placeholder']); ?></option>
                                     <?php if (!empty($time_slots)) : ?>
                                         <?php foreach ($time_slots as $slot) : ?>
                                             <option value="<?php echo esc_attr($slot); ?>"><?php echo esc_html($slot); ?></option>
@@ -178,15 +217,15 @@ class RB_Frontend {
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="rb-form-group">
-                            <label for="rb_requests_inline">Yêu cầu đặc biệt</label>
+                            <label for="rb_requests_inline" data-lang-key="special_requests_label" data-lang-attr="text"><?php echo esc_html($translations['special_requests_label']); ?></label>
                             <textarea id="rb_requests_inline" name="special_requests" rows="3"></textarea>
                         </div>
-                        
-                        <button type="submit" class="rb-btn-primary">Đặt bàn</button>
-                        
-                        <div id="rb-form-message-inline"></div>
+
+                        <button type="submit" class="rb-btn-primary" data-lang-key="inline_submit_button" data-lang-attr="text"><?php echo esc_html($translations['inline_submit_button']); ?></button>
+
+                        <div id="rb-form-message-inline" class="rb-form-message"></div>
                     </form>
                 </div>
             <?php endif; ?>
@@ -297,9 +336,16 @@ class RB_Frontend {
         return true;
     }  
     public function handle_booking_submission() {
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $language = isset($_POST['booking_language']) ? RB_I18n::sanitize_language($_POST['booking_language']) : 'vi';
+        $texts = RB_I18n::get_section_translations('frontend', $language);
+
         $nonce = isset($_POST['rb_nonce']) ? $_POST['rb_nonce'] : (isset($_POST['rb_nonce_inline']) ? $_POST['rb_nonce_inline'] : '');
         if (!wp_verify_nonce($nonce, 'rb_booking_nonce')) {
-            wp_send_json_error(array('message' => 'Security check failed'));
+            wp_send_json_error(array('message' => $texts['security_failed']));
             wp_die();
         }
 
@@ -307,7 +353,7 @@ class RB_Frontend {
 
         foreach ($required_fields as $field) {
             if (empty($_POST[$field])) {
-                wp_send_json_error(array('message' => 'Vui lòng điền đầy đủ thông tin bắt buộc'));
+                wp_send_json_error(array('message' => $texts['form_missing_fields']));
                 wp_die();
             }
         }
@@ -326,12 +372,12 @@ class RB_Frontend {
         );
 
         if (!is_email($booking_data['customer_email'])) {
-            wp_send_json_error(array('message' => 'Email không hợp lệ'));
+            wp_send_json_error(array('message' => $texts['invalid_email']));
             wp_die();
         }
 
-        if (!preg_match('/^[0-9]{10,11}$/', $booking_data['customer_phone'])) {
-            wp_send_json_error(array('message' => 'Số điện thoại không hợp lệ'));
+        if (!preg_match('/^[0-9]{6,15}$/', $booking_data['customer_phone'])) {
+            wp_send_json_error(array('message' => $texts['invalid_phone']));
             wp_die();
         }
 
@@ -339,7 +385,7 @@ class RB_Frontend {
         $today = strtotime(date('Y-m-d'));
 
         if ($booking_date === false || $booking_date < $today) {
-            wp_send_json_error(array('message' => 'Ngày đặt bàn không hợp lệ'));
+            wp_send_json_error(array('message' => $texts['invalid_date']));
             wp_die();
         }
 
@@ -358,11 +404,14 @@ class RB_Frontend {
         );
 
         if (!$is_available) {
+            $formatted_date = date_i18n(get_option('date_format'), strtotime($booking_data['booking_date']));
             wp_send_json_error(array(
-                'message' => 'Rất tiếc, không còn bàn trống cho ' . $booking_data['guest_count'] . 
-                            ' người vào lúc ' . $booking_data['booking_time'] . 
-                            ' ngày ' . date('d/m/Y', strtotime($booking_data['booking_date'])) . 
-                            '. Vui lòng chọn thời gian khác.'
+                'message' => sprintf(
+                    $texts['no_availability_message'],
+                    number_format_i18n($booking_data['guest_count']),
+                    $booking_data['booking_time'],
+                    $formatted_date
+                )
             ));
             wp_die();
         }
@@ -383,18 +432,25 @@ class RB_Frontend {
         }
 
         wp_send_json_success(array(
-            'message' => 'Đặt bàn thành công! Chúng tôi sẽ liên hệ với bạn sớm để xác nhận.',
+            'message' => $texts['success_message'],
             'booking_id' => $booking_id
         ));
 
         wp_die();
     }
     public function check_availability() {
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $language = isset($_POST['language']) ? RB_I18n::sanitize_language($_POST['language']) : 'vi';
+        $texts = RB_I18n::get_section_translations('frontend', $language);
+
         if (!check_ajax_referer('rb_frontend_nonce', 'nonce', false)) {
-            wp_send_json_error(array('message' => 'Security check failed'));
+            wp_send_json_error(array('message' => $texts['security_failed']));
             wp_die();
         }
-        
+
         $date = sanitize_text_field($_POST['date']);
         $time = sanitize_text_field($_POST['time']);
         $guests = intval($_POST['guests']);
@@ -402,9 +458,9 @@ class RB_Frontend {
         global $rb_booking;
         $is_available = $rb_booking->is_time_slot_available($date, $time, $guests);
         $count = $rb_booking->available_table_count($date, $time, $guests);
-        
+
         if ($is_available && $count > 0) {
-            $message = sprintf('Có %d bàn trống phù hợp cho %d khách', $count, $guests);
+            $message = sprintf($texts['availability_success'], number_format_i18n($count), number_format_i18n($guests));
             wp_send_json_success(array(
                 'available' => true,
                 'message' => $message,
@@ -413,10 +469,10 @@ class RB_Frontend {
         } else {
             wp_send_json_success(array(
                 'available' => false,
-                'message' => 'Không có bàn trống vào thời gian này. Vui lòng chọn thời gian khác.'
+                'message' => $texts['availability_fail']
             ));
         }
-        
+
         wp_die();
     }
 }
