@@ -288,41 +288,60 @@ class RB_Admin {
         
         <script>
         jQuery(document).ready(function($) {
-            $('#booking_date, #booking_time, #guest_count').on('change', function() {
+            var $availabilityInfo = $('#rb-availability-info');
+            var $availabilityList = $('#rb-available-tables-list');
+            var availabilityNonce = '<?php echo wp_create_nonce("rb_frontend_nonce"); ?>';
+            var language = '<?php echo esc_js($admin_language); ?>';
+
+            function resetAvailability() {
+                $availabilityList.empty();
+                $availabilityInfo.hide();
+            }
+
+            function updateAvailabilityPreview() {
                 var date = $('#booking_date').val();
                 var time = $('#booking_time').val();
                 var guests = $('#guest_count').val();
-                var language = '<?php echo esc_js($admin_language); ?>';
+                var location = $('#booking_location').val();
 
-                if (date && time && guests) {
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'rb_check_availability',
-                            date: date,
-                            time: time,
-                            guests: guests,
-                            language: language,
-                            nonce: '<?php echo wp_create_nonce("rb_frontend_nonce"); ?>'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                var html = '<p><strong><?php echo esc_js($backend_texts['availability_status']); ?>:</strong> ';
-                                if (response.data.available) {
-                                    html += '<span style="color: green;"><?php echo esc_js($backend_texts['availability_free']); ?></span></p>';
-                                    html += '<p>' + response.data.message + '</p>';
-                                } else {
-                                    html += '<span style="color: red;"><?php echo esc_js($backend_texts['availability_full']); ?></span></p>';
-                                    html += '<p>' + response.data.message + '</p>';
-                                }
-                                $('#rb-available-tables-list').html(html);
-                                $('#rb-availability-info').show();
-                            }
-                        }
-                    });
+                if (!date || !time || !guests || !location) {
+                    resetAvailability();
+                    return;
                 }
-            });
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'rb_check_availability',
+                        date: date,
+                        time: time,
+                        guests: guests,
+                        location: location,
+                        language: language,
+                        nonce: availabilityNonce
+                    },
+                    success: function(response) {
+                        if (response && response.success && response.data) {
+                            var html = '<p><strong><?php echo esc_js($backend_texts['availability_status']); ?>:</strong> ';
+                            if (response.data.available) {
+                                html += '<span style="color: green;"><?php echo esc_js($backend_texts['availability_free']); ?></span></p>';
+                                html += '<p>' + response.data.message + '</p>';
+                            } else {
+                                html += '<span style="color: red;"><?php echo esc_js($backend_texts['availability_full']); ?></span></p>';
+                                html += '<p>' + response.data.message + '</p>';
+                            }
+                            $availabilityList.html(html);
+                            $availabilityInfo.show();
+                        } else {
+                            resetAvailability();
+                        }
+                    },
+                    error: resetAvailability
+                });
+            }
+
+            $('#booking_date, #booking_time, #guest_count, #booking_location').on('change', updateAvailabilityPreview);
         });
         </script>
         <?php
