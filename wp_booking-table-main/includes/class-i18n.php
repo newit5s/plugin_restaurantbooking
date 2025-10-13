@@ -131,6 +131,10 @@ class RB_I18n {
                 'location_required' => 'Vui lòng chọn khu vực nhà hàng.',
                 'language_selection_title' => 'Chọn ngôn ngữ của bạn',
                 'language_selection_description' => 'Vui lòng chọn ngôn ngữ bạn muốn sử dụng.',
+                'schedule_step_title' => 'Chọn khu vực & thời gian',
+                'schedule_step_description' => 'Vui lòng chọn khu vực, ngày, giờ và số lượng khách trước khi tiếp tục.',
+                'details_step_title' => 'Thông tin liên hệ',
+                'details_step_description' => 'Điền đầy đủ thông tin liên hệ để hoàn tất đặt bàn.',
                 'check_availability_button' => 'Kiểm tra tình trạng bàn',
                 'availability_precheck_required' => 'Vui lòng kiểm tra tình trạng bàn trước khi điền thông tin.',
                 'availability_ready' => 'Còn bàn trống! Bạn có thể tiếp tục điền thông tin.',
@@ -146,6 +150,8 @@ class RB_I18n {
                 'special_requests_label' => 'Yêu cầu đặc biệt',
                 'submit_button' => 'Xác nhận đặt bàn',
                 'cancel_button' => 'Hủy',
+                'back_button' => 'Quay lại',
+                'continue_button' => 'Tiếp tục',
                 'inline_title' => 'Đặt bàn nhà hàng',
                 'inline_submit_button' => 'Đặt bàn',
                 'inline_date_label' => 'Ngày *',
@@ -177,6 +183,10 @@ class RB_I18n {
                 'location_required' => 'Please choose a restaurant location.',
                 'language_selection_title' => 'Choose your language',
                 'language_selection_description' => 'Please choose the language you prefer.',
+                'schedule_step_title' => 'Choose location & time',
+                'schedule_step_description' => 'Select the location, date, time, and number of guests before continuing.',
+                'details_step_title' => 'Contact details',
+                'details_step_description' => 'Provide your contact information to complete the reservation.',
                 'check_availability_button' => 'Check availability',
                 'availability_precheck_required' => 'Please check availability before entering your details.',
                 'availability_ready' => 'Great news! A table is available—please complete your details.',
@@ -192,6 +202,8 @@ class RB_I18n {
                 'special_requests_label' => 'Special Requests',
                 'submit_button' => 'Confirm Reservation',
                 'cancel_button' => 'Cancel',
+                'back_button' => 'Back',
+                'continue_button' => 'Continue',
                 'inline_title' => 'Restaurant Booking',
                 'inline_submit_button' => 'Book Now',
                 'inline_date_label' => 'Date *',
@@ -223,6 +235,10 @@ class RB_I18n {
                 'location_required' => '店舗エリアを選択してください。',
                 'language_selection_title' => '言語を選択してください',
                 'language_selection_description' => 'ご利用になりたい言語を選択してください。',
+                'schedule_step_title' => '店舗と時間を選択',
+                'schedule_step_description' => '店舗エリア、日付、時間、人数を選択してください。',
+                'details_step_title' => '連絡先情報',
+                'details_step_description' => '予約を完了するために連絡先情報を入力してください。',
                 'check_availability_button' => '空席を確認する',
                 'availability_precheck_required' => '情報を入力する前に空席をご確認ください。',
                 'availability_ready' => '空席があります。お客様情報をご入力ください。',
@@ -238,6 +254,8 @@ class RB_I18n {
                 'special_requests_label' => '特別なご要望',
                 'submit_button' => '予約を確定する',
                 'cancel_button' => 'キャンセル',
+                'back_button' => '戻る',
+                'continue_button' => '次へ',
                 'inline_title' => 'レストラン予約',
                 'inline_submit_button' => '予約する',
                 'inline_date_label' => '日付 *',
@@ -280,6 +298,7 @@ class RB_I18n {
                 'booking_time_label' => 'Giờ đặt *',
                 'booking_location_label' => 'Khu vực nhà hàng *',
                 'booking_language_label' => 'Ngôn ngữ sử dụng *',
+                'booking_language_auto_note' => 'Ngôn ngữ được cố định theo WordPress Admin: <strong>%s</strong>.',
                 'booking_source_label' => 'Nguồn đặt bàn *',
                 'booking_source_description' => 'Chọn nguồn khách hàng đặt bàn từ đâu',
                 'special_requests_label' => 'Yêu cầu đặc biệt',
@@ -314,6 +333,7 @@ class RB_I18n {
                 'booking_time_label' => 'Reservation time *',
                 'booking_location_label' => 'Restaurant location *',
                 'booking_language_label' => 'Working language *',
+                'booking_language_auto_note' => 'The language follows the WordPress admin locale: <strong>%s</strong>.',
                 'booking_source_label' => 'Reservation source *',
                 'booking_source_description' => 'Choose where the reservation came from',
                 'special_requests_label' => 'Special requests',
@@ -348,6 +368,7 @@ class RB_I18n {
                 'booking_time_label' => '予約時間 *',
                 'booking_location_label' => '店舗エリア *',
                 'booking_language_label' => '使用言語 *',
+                'booking_language_auto_note' => '言語は WordPress 管理画面のロケールに合わせて設定されています: <strong>%s</strong>。',
                 'booking_source_label' => '予約経路 *',
                 'booking_source_description' => 'お客様がどこから予約されたかを選択してください',
                 'special_requests_label' => '特別なご要望',
@@ -412,6 +433,31 @@ class RB_I18n {
     public static function translate($section, $key, $language) {
         $translations = self::get_section_translations($section, $language);
         return isset($translations[$key]) ? $translations[$key] : '';
+    }
+
+    /**
+     * Determine supported language from a WordPress locale.
+     *
+     * @param string $locale
+     * @param string $fallback
+     * @return string
+     */
+    public static function get_language_from_locale($locale, $fallback = 'vi') {
+        $fallback = self::sanitize_language($fallback);
+
+        if (empty($locale)) {
+            return $fallback;
+        }
+
+        $normalized = strtolower(str_replace('-', '_', $locale));
+
+        foreach (self::get_languages() as $code => $language) {
+            if ($normalized === $code || strpos($normalized, $code . '_') === 0) {
+                return $code;
+            }
+        }
+
+        return $fallback;
     }
 
     /**
