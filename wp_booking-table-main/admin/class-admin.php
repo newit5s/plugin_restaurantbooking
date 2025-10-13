@@ -75,7 +75,16 @@ class RB_Admin {
     public function display_create_booking_page() {
         global $wpdb;
         $settings = get_option('rb_settings', array());
-        
+
+        $admin_language = isset($settings['admin_language']) ? $settings['admin_language'] : 'vi';
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $backend_texts = RB_I18n::get_section_translations('backend', $admin_language);
+        $frontend_texts = RB_I18n::get_section_translations('frontend', $admin_language);
+
         $opening_time = isset($settings['opening_time']) ? $settings['opening_time'] : '09:00';
         $closing_time = isset($settings['closing_time']) ? $settings['closing_time'] : '22:00';
         $time_interval = isset($settings['time_slot_interval']) ? intval($settings['time_slot_interval']) : 30;
@@ -84,7 +93,7 @@ class RB_Admin {
         
         ?>
         <div class="wrap">
-            <h1><?php _e('Tạo đặt bàn mới', 'restaurant-booking'); ?></h1>
+            <h1><?php echo esc_html($backend_texts['create_booking_title']); ?></h1>
             
             <div class="card" style="max-width: 800px;">
                 <form method="post" action="" id="rb-admin-create-booking-form">
@@ -94,7 +103,7 @@ class RB_Admin {
                     <table class="form-table">
                         <tr>
                             <th scope="row">
-                                <label for="customer_name">Tên khách hàng *</label>
+                                <label for="customer_name"><?php echo esc_html($backend_texts['customer_name_label']); ?></label>
                             </th>
                             <td>
                                 <input type="text" name="customer_name" id="customer_name" 
@@ -104,17 +113,17 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="customer_phone">Số điện thoại *</label>
+                                <label for="customer_phone"><?php echo esc_html($backend_texts['customer_phone_label']); ?></label>
                             </th>
                             <td>
-                                <input type="tel" name="customer_phone" id="customer_phone" 
-                                       class="regular-text" required pattern="[0-9]{10,11}">
+                                <input type="tel" name="customer_phone" id="customer_phone"
+                                       class="regular-text" required pattern="[0-9]{6,15}">
                             </td>
                         </tr>
                         
                         <tr>
                             <th scope="row">
-                                <label for="customer_email">Email *</label>
+                                <label for="customer_email"><?php echo esc_html($backend_texts['customer_email_label']); ?></label>
                             </th>
                             <td>
                                 <input type="email" name="customer_email" id="customer_email" 
@@ -124,12 +133,12 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="guest_count">Số lượng khách *</label>
+                                <label for="guest_count"><?php echo esc_html($backend_texts['guest_count_label']); ?></label>
                             </th>
                             <td>
                                 <select name="guest_count" id="guest_count" required>
                                     <?php for ($i = 1; $i <= 20; $i++) : ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?> người</option>
+                                        <option value="<?php echo $i; ?>"><?php echo esc_html(sprintf($frontend_texts['guest_option'], $i)); ?></option>
                                     <?php endfor; ?>
                                 </select>
                             </td>
@@ -137,7 +146,7 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="booking_date">Ngày đặt *</label>
+                                <label for="booking_date"><?php echo esc_html($backend_texts['booking_date_label']); ?></label>
                             </th>
                             <td>
                                 <input type="date" name="booking_date" id="booking_date" 
@@ -147,11 +156,11 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="booking_time">Giờ đặt *</label>
+                                <label for="booking_time"><?php echo esc_html($backend_texts['booking_time_label']); ?></label>
                             </th>
                             <td>
                                 <select name="booking_time" id="booking_time" required>
-                                    <option value="">Chọn giờ</option>
+                                    <option value=""><?php echo esc_html($frontend_texts['select_time_placeholder']); ?></option>
                                     <?php foreach ($time_slots as $slot) : ?>
                                         <option value="<?php echo esc_attr($slot); ?>">
                                             <?php echo esc_html($slot); ?>
@@ -163,25 +172,25 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="booking_source">Nguồn đặt bàn *</label>
+                                <label for="booking_source"><?php echo esc_html($backend_texts['booking_source_label']); ?></label>
                             </th>
                             <td>
                                 <select name="booking_source" id="booking_source" required>
-                                    <option value="phone">📞 Điện thoại</option>
-                                    <option value="facebook">📘 Facebook</option>
-                                    <option value="zalo">💬 Zalo</option>
-                                    <option value="instagram">📷 Instagram</option>
-                                    <option value="walk-in">🚶 Khách vãng lai</option>
-                                    <option value="email">✉️ Email</option>
-                                    <option value="other">❓ Khác</option>
+                                    <option value="phone"><?php echo esc_html($backend_texts['source_phone']); ?></option>
+                                    <option value="facebook"><?php echo esc_html($backend_texts['source_facebook']); ?></option>
+                                    <option value="zalo"><?php echo esc_html($backend_texts['source_zalo']); ?></option>
+                                    <option value="instagram"><?php echo esc_html($backend_texts['source_instagram']); ?></option>
+                                    <option value="walk-in"><?php echo esc_html($backend_texts['source_walk_in']); ?></option>
+                                    <option value="email"><?php echo esc_html($backend_texts['source_email']); ?></option>
+                                    <option value="other"><?php echo esc_html($backend_texts['source_other']); ?></option>
                                 </select>
-                                <p class="description">Chọn nguồn khách hàng đặt bàn từ đâu</p>
+                                <p class="description"><?php echo esc_html($backend_texts['booking_source_description']); ?></p>
                             </td>
                         </tr>
                         
                         <tr>
                             <th scope="row">
-                                <label for="special_requests">Yêu cầu đặc biệt</label>
+                                <label for="special_requests"><?php echo esc_html($backend_texts['special_requests_label']); ?></label>
                             </th>
                             <td>
                                 <textarea name="special_requests" id="special_requests" 
@@ -191,37 +200,37 @@ class RB_Admin {
                         
                         <tr>
                             <th scope="row">
-                                <label for="admin_notes">Ghi chú nội bộ</label>
+                                <label for="admin_notes"><?php echo esc_html($backend_texts['admin_notes_label']); ?></label>
                             </th>
                             <td>
                                 <textarea name="admin_notes" id="admin_notes" 
                                           rows="3" class="large-text"></textarea>
-                                <p class="description">Ghi chú này chỉ dành cho admin, khách hàng không nhìn thấy</p>
+                                <p class="description"><?php echo esc_html($backend_texts['admin_notes_description']); ?></p>
                             </td>
                         </tr>
                         
                         <tr>
                             <th scope="row">
-                                <label for="auto_confirm">Tự động xác nhận</label>
+                                <label for="auto_confirm"><?php echo esc_html($backend_texts['auto_confirm_label']); ?></label>
                             </th>
                             <td>
                                 <label>
                                     <input type="checkbox" name="auto_confirm" id="auto_confirm" value="1" checked>
-                                    Tự động xác nhận và gán bàn
+                                    <?php echo esc_html($backend_texts['auto_confirm_description']); ?>
                                 </label>
                             </td>
                         </tr>
                     </table>
                     
                     <p class="submit">
-                        <button type="submit" class="button button-primary">Tạo đặt bàn</button>
-                        <a href="?page=restaurant-booking" class="button">Hủy</a>
+                        <button type="submit" class="button button-primary"><?php echo esc_html($backend_texts['submit_button']); ?></button>
+                        <a href="?page=restaurant-booking" class="button"><?php echo esc_html($backend_texts['cancel_button']); ?></a>
                     </p>
                 </form>
             </div>
             
             <div id="rb-availability-info" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 3px; display: none;">
-                <h3>Thông tin bàn trống</h3>
+                <h3><?php echo esc_html($backend_texts['availability_title']); ?></h3>
                 <div id="rb-available-tables-list"></div>
             </div>
         </div>
@@ -232,7 +241,8 @@ class RB_Admin {
                 var date = $('#booking_date').val();
                 var time = $('#booking_time').val();
                 var guests = $('#guest_count').val();
-                
+                var language = '<?php echo esc_js($admin_language); ?>';
+
                 if (date && time && guests) {
                     $.ajax({
                         url: ajaxurl,
@@ -242,16 +252,17 @@ class RB_Admin {
                             date: date,
                             time: time,
                             guests: guests,
+                            language: language,
                             nonce: '<?php echo wp_create_nonce("rb_frontend_nonce"); ?>'
                         },
                         success: function(response) {
                             if (response.success) {
-                                var html = '<p><strong>Trạng thái:</strong> ';
+                                var html = '<p><strong><?php echo esc_js($backend_texts['availability_status']); ?>:</strong> ';
                                 if (response.data.available) {
-                                    html += '<span style="color: green;">✓ Còn bàn trống</span></p>';
+                                    html += '<span style="color: green;"><?php echo esc_js($backend_texts['availability_free']); ?></span></p>';
                                     html += '<p>' + response.data.message + '</p>';
                                 } else {
-                                    html += '<span style="color: red;">✗ Hết bàn</span></p>';
+                                    html += '<span style="color: red;"><?php echo esc_js($backend_texts['availability_full']); ?></span></p>';
                                     html += '<p>' + response.data.message + '</p>';
                                 }
                                 $('#rb-available-tables-list').html(html);
@@ -1072,12 +1083,20 @@ class RB_Admin {
     
     public function display_settings_page() {
         $settings = get_option('rb_settings', array());
-        
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $languages = RB_I18n::get_languages();
+
         // Default values
         $defaults = array(
             'working_hours_mode' => 'simple', // simple or advanced
             'opening_time' => '09:00',
             'closing_time' => '22:00',
+            'frontend_language' => 'vi',
+            'admin_language' => 'vi',
             'lunch_break_enabled' => 'no',
             'lunch_break_start' => '14:00',
             'lunch_break_end' => '17:00',
@@ -1120,6 +1139,7 @@ class RB_Admin {
                     <a href="#tab-booking" class="nav-tab">📅 Đặt bàn</a>
                     <a href="#tab-notifications" class="nav-tab">🔔 Thông báo</a>
                     <a href="#tab-policies" class="nav-tab">📋 Chính sách</a>
+                    <a href="#tab-language" class="nav-tab">🌐 Ngôn ngữ</a>
                     <a href="#tab-advanced" class="nav-tab">🔧 Nâng cao</a>
                 </h2>
                 
@@ -1405,7 +1425,7 @@ class RB_Admin {
                 <!-- Tab 4: Policies -->
                 <div id="tab-policies" class="rb-tab-content" style="display: none;">
                     <h2>Chính sách & Quy định</h2>
-                    
+
                     <table class="form-table">
                         <tr>
                             <th scope="row">
@@ -1471,7 +1491,46 @@ class RB_Admin {
                         </tr>
                     </table>
                 </div>
-                
+
+                <!-- Tab Language -->
+                <div id="tab-language" class="rb-tab-content" style="display: none;">
+                    <h2>Cài đặt ngôn ngữ</h2>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="rb_frontend_language">Ngôn ngữ mặc định cho khách</label>
+                            </th>
+                            <td>
+                                <select name="rb_settings[frontend_language]" id="rb_frontend_language">
+                                    <?php foreach ($languages as $code => $language) : ?>
+                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['frontend_language'], $code); ?>>
+                                            <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Ngôn ngữ mặc định cho biểu mẫu đặt bàn hiển thị với khách hàng.</p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="rb_admin_language">Ngôn ngữ dành cho quản trị</label>
+                            </th>
+                            <td>
+                                <select name="rb_settings[admin_language]" id="rb_admin_language">
+                                    <?php foreach ($languages as $code => $language) : ?>
+                                        <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['admin_language'], $code); ?>>
+                                            <?php echo esc_html($language['flag'] . ' ' . $language['native']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Ngôn ngữ sử dụng trong các trang quản trị của plugin.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
                 <!-- Tab 5: Advanced -->
                 <div id="tab-advanced" class="rb-tab-content" style="display: none;">
                     <h2>Cài đặt nâng cao</h2>
@@ -1833,12 +1892,18 @@ class RB_Admin {
     
     private function save_settings() {
         $settings = isset($_POST['rb_settings']) ? $_POST['rb_settings'] : array();
-        
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
         $clean_settings = array(
             // Working hours
             'working_hours_mode' => isset($settings['working_hours_mode']) ? sanitize_text_field($settings['working_hours_mode']) : 'simple',
             'opening_time' => isset($settings['opening_time']) ? sanitize_text_field($settings['opening_time']) : '09:00',
             'closing_time' => isset($settings['closing_time']) ? sanitize_text_field($settings['closing_time']) : '22:00',
+            'frontend_language' => isset($settings['frontend_language']) ? RB_I18n::sanitize_language($settings['frontend_language']) : 'vi',
+            'admin_language' => isset($settings['admin_language']) ? RB_I18n::sanitize_language($settings['admin_language']) : 'vi',
             'lunch_break_enabled' => isset($settings['lunch_break_enabled']) ? 'yes' : 'no',
             'lunch_break_start' => isset($settings['lunch_break_start']) ? sanitize_text_field($settings['lunch_break_start']) : '14:00',
             'lunch_break_end' => isset($settings['lunch_break_end']) ? sanitize_text_field($settings['lunch_break_end']) : '17:00',
