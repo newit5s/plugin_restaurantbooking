@@ -91,6 +91,15 @@ class RB_Admin {
             'rb-settings',
             array($this, 'display_settings_page')
         );
+
+        add_submenu_page(
+            'restaurant-booking',
+            __('Cập nhật tính năng', 'restaurant-booking'),
+            __('Cập nhật tính năng', 'restaurant-booking'),
+            'manage_options',
+            'rb-feature-updates',
+            array($this, 'display_feature_updates_page')
+        );
     }
     
     public function display_create_booking_page() {
@@ -1786,6 +1795,149 @@ class RB_Admin {
         </script>
         <?php
     }
+
+    public function display_feature_updates_page() {
+        if (!class_exists('RB_Update_Features')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-update-features.php';
+        }
+
+        $phases = RB_Update_Features::get_all_features();
+        $status_labels = RB_Update_Features::get_status_labels();
+        $last_updated = RB_Update_Features::get_last_updated_at();
+        $last_updated_display = '';
+
+        if (!empty($last_updated)) {
+            $timestamp = strtotime($last_updated);
+            if ($timestamp) {
+                $date_format = get_option('date_format') . ' ' . get_option('time_format');
+                $last_updated_display = date_i18n($date_format, $timestamp);
+            }
+        }
+        ?>
+        <div class="wrap rb-feature-updates-wrap">
+            <h1><?php esc_html_e('Lộ trình cập nhật tính năng', 'restaurant-booking'); ?></h1>
+            <p class="description">
+                <?php esc_html_e('Theo dõi tiến độ các hạng mục cải tiến để phối hợp với đội vận hành và hỗ trợ khách hàng.', 'restaurant-booking'); ?>
+            </p>
+
+            <?php if ($last_updated_display) : ?>
+                <p class="rb-feature-updates-meta">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php
+                    printf(
+                        esc_html__('Lần cập nhật gần nhất: %s', 'restaurant-booking'),
+                        '<strong>' . esc_html($last_updated_display) . '</strong>'
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
+
+            <form method="post" action="">
+                <?php wp_nonce_field('rb_save_feature_updates', 'rb_nonce'); ?>
+                <input type="hidden" name="action" value="save_feature_updates">
+
+                <?php if (empty($phases)) : ?>
+                    <p><?php esc_html_e('Hiện chưa có dữ liệu roadmap để hiển thị.', 'restaurant-booking'); ?></p>
+                <?php else : ?>
+                    <?php foreach ($phases as $phase => $phase_data) : ?>
+                        <div class="rb-feature-phase-card">
+                            <div class="rb-feature-phase-header">
+                                <div>
+                                    <h2><?php echo esc_html($phase_data['title']); ?></h2>
+                                    <?php if (!empty($phase_data['summary'])) : ?>
+                                        <p class="rb-feature-phase-summary"><?php echo wp_kses_post($phase_data['summary']); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($phase_data['themes'])) : ?>
+                                    <div class="rb-feature-phase-themes">
+                                        <?php foreach ($phase_data['themes'] as $theme) : ?>
+                                            <span class="rb-feature-phase-theme"><?php echo esc_html($theme); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if (empty($phase_data['features'])) : ?>
+                                <p><?php esc_html_e('Chưa có hạng mục nào trong phase này.', 'restaurant-booking'); ?></p>
+                            <?php else : ?>
+                                <table class="widefat striped rb-feature-table">
+                                    <thead>
+                                        <tr>
+                                            <th><?php esc_html_e('Hạng mục', 'restaurant-booking'); ?></th>
+                                            <th class="rb-feature-status-heading"><?php esc_html_e('Trạng thái', 'restaurant-booking'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($phase_data['features'] as $feature) : ?>
+                                            <tr>
+                                                <td>
+                                                    <strong><?php echo esc_html($feature['name']); ?></strong>
+                                                    <?php if (!empty($feature['description'])) : ?>
+                                                        <p class="description"><?php echo wp_kses_post($feature['description']); ?></p>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!empty($feature['benefit'])) : ?>
+                                                        <p class="rb-feature-benefit">
+                                                            <span class="dashicons dashicons-awards"></span>
+                                                            <?php echo wp_kses_post($feature['benefit']); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+
+                                                    <div class="rb-feature-meta">
+                                                        <?php if (!empty($feature['owner'])) : ?>
+                                                            <span class="rb-feature-owner">
+                                                                <span class="dashicons dashicons-admin-users"></span>
+                                                                <?php echo esc_html(sprintf(__('Owner: %s', 'restaurant-booking'), $feature['owner'])); ?>
+                                                            </span>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($feature['success_metric'])) : ?>
+                                                            <span class="rb-feature-metric">
+                                                                <span class="dashicons dashicons-chart-line"></span>
+                                                                <?php echo esc_html($feature['success_metric']); ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php if (!empty($feature['tags'])) : ?>
+                                                        <div class="rb-feature-tags">
+                                                            <?php foreach ($feature['tags'] as $tag) : ?>
+                                                                <span class="rb-feature-tag"><?php echo esc_html($tag); ?></span>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="rb-feature-status-cell">
+                                                    <span class="rb-feature-status-badge status-<?php echo esc_attr($feature['status']); ?>">
+                                                        <?php echo esc_html($feature['status_label']); ?>
+                                                    </span>
+                                                    <label class="screen-reader-text" for="feature-status-<?php echo esc_attr($phase . '-' . $feature['id']); ?>">
+                                                        <?php esc_html_e('Cập nhật trạng thái', 'restaurant-booking'); ?>
+                                                    </label>
+                                                    <select id="feature-status-<?php echo esc_attr($phase . '-' . $feature['id']); ?>"
+                                                            name="feature_status[<?php echo esc_attr($phase); ?>][<?php echo esc_attr($feature['id']); ?>]">
+                                                        <?php foreach ($status_labels as $key => $label) : ?>
+                                                            <option value="<?php echo esc_attr($key); ?>" <?php selected($feature['status'], $key); ?>>
+                                                                <?php echo esc_html($label); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <?php submit_button(__('Lưu cập nhật roadmap', 'restaurant-booking')); ?>
+                <?php endif; ?>
+            </form>
+        </div>
+        <?php
+    }
+
     public function handle_admin_actions() {
         if (!isset($_GET['page']) || (strpos($_GET['page'], 'restaurant-booking') === false && strpos($_GET['page'], 'rb-') === false)) {
             return;
@@ -1848,6 +2000,20 @@ class RB_Admin {
                 case 'create_admin_booking':
                     if (wp_verify_nonce($_POST['rb_nonce'], 'rb_create_admin_booking')) {
                         $this->create_admin_booking();
+                    }
+                    break;
+                case 'save_feature_updates':
+                    if (wp_verify_nonce($_POST['rb_nonce'], 'rb_save_feature_updates')) {
+                        if (!class_exists('RB_Update_Features')) {
+                            require_once RB_PLUGIN_DIR . 'includes/class-update-features.php';
+                        }
+
+                        $statuses = isset($_POST['feature_status']) ? wp_unslash($_POST['feature_status']) : array();
+                        $changed = RB_Update_Features::bulk_update_statuses($statuses);
+                        $message = $changed ? 'feature_updates_saved' : 'feature_updates_noop';
+
+                        wp_redirect(admin_url('admin.php?page=rb-feature-updates&message=' . $message));
+                        exit;
                     }
                     break;
             }
@@ -2115,6 +2281,13 @@ class RB_Admin {
                 $error_detail = isset($_GET['error']) ? urldecode($_GET['error']) : 'Hết bàn trống';
                 $text = 'Không thể xác nhận: ' . $error_detail;
                 $type = 'error';
+                break;
+            case 'feature_updates_saved':
+                $text = 'Roadmap tính năng đã được cập nhật.';
+                break;
+            case 'feature_updates_noop':
+                $text = 'Không có thay đổi trạng thái nào được lưu.';
+                $type = 'info';
                 break;
         }
 

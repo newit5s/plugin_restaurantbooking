@@ -75,6 +75,7 @@ function rb_init_plugin() {
     require_once RB_PLUGIN_DIR . 'includes/class-customer.php';
     require_once RB_PLUGIN_DIR . 'includes/class-ajax.php';
     require_once RB_PLUGIN_DIR . 'includes/class-email.php';
+    require_once RB_PLUGIN_DIR . 'includes/class-update-features.php';
     
     // Initialize Database
     global $rb_database;

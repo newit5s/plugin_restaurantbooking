@@ -1,0 +1,40 @@
+{
+  "title": "Phase 1 – Nền tảng hiển thị roadmap",
+  "summary": "Xây dựng trang quản trị giúp team nhìn thấy roadmap cập nhật tính năng và ngữ cảnh của từng hạng mục.",
+  "themes": [
+    "Roadmap visibility",
+    "Team alignment"
+  ],
+  "features": [
+    {
+      "id": "roadmap-visibility",
+      "name": "Trang tổng quan cập nhật tính năng",
+      "description": "Tạo trang quản trị chuyên biệt để gom roadmap các phase với bố cục dễ đọc.",
+      "benefit": "Giúp chủ nhà hàng biết nhanh giai đoạn phát triển hiện tại.",
+      "owner": "Product Ops",
+      "success_metric": "Trang được truy cập tối thiểu 3 lần/tuần",
+      "tags": ["dashboard", "communication"],
+      "default_status": "completed"
+    },
+    {
+      "id": "status-storage",
+      "name": "Lưu trạng thái tiến độ",
+      "description": "Cho phép lưu trạng thái từng hạng mục để không mất dữ liệu sau mỗi lần đăng nhập.",
+      "benefit": "Đảm bảo thông tin tiến độ luôn chính xác và không bị reset.",
+      "owner": "Engineering",
+      "success_metric": "Trạng thái vẫn giữ nguyên sau khi refresh",
+      "tags": ["data", "persistence"],
+      "default_status": "completed"
+    },
+    {
+      "id": "phase-context",
+      "name": "Hiển thị ngữ cảnh phase",
+      "description": "Bổ sung tiêu đề, mô tả và nhóm chủ đề để mỗi phase dễ hiểu hơn.",
+      "benefit": "Team nội bộ nắm được mục tiêu chính của từng phase.",
+      "owner": "Product",
+      "success_metric": "Mỗi phase có ít nhất 2 chủ đề và mô tả rõ ràng",
+      "tags": ["context", "copywriting"],
+      "default_status": "completed"
+    }
+  ]
+}
