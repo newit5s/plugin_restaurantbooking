@@ -200,6 +200,155 @@
     align-items: center;
 }
 
+/* Feature Updates Roadmap */
+.rb-feature-updates-wrap {
+    max-width: 1100px;
+}
+
+.rb-feature-updates-wrap .rb-feature-updates-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 6px 14px;
+    margin: 15px 0;
+    font-size: 13px;
+    color: #1f2933;
+}
+
+.rb-feature-phase-card {
+    background: #fff;
+    border: 1px solid #dcdfe3;
+    border-radius: 8px;
+    padding: 24px;
+    margin-top: 24px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.rb-feature-phase-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.rb-feature-phase-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.rb-feature-phase-summary {
+    margin: 8px 0 0;
+    color: #4a5568;
+}
+
+.rb-feature-phase-themes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.rb-feature-phase-theme {
+    background: #edf2ff;
+    color: #3b5bdb;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.rb-feature-table td {
+    vertical-align: top;
+}
+
+.rb-feature-benefit {
+    margin: 8px 0;
+    color: #2563eb;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-weight: 500;
+}
+
+.rb-feature-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.rb-feature-meta .dashicons {
+    font-size: 14px;
+}
+
+.rb-feature-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.rb-feature-tag {
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rb-feature-status-heading {
+    width: 220px;
+    text-align: right;
+}
+
+.rb-feature-status-cell {
+    width: 220px;
+    text-align: right;
+}
+
+.rb-feature-status-cell select {
+    width: 100%;
+    max-width: 220px;
+}
+
+.rb-feature-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.rb-feature-status-badge.status-planned {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.rb-feature-status-badge.status-in_progress {
+    background: #fff7e6;
+    color: #ad6800;
+    border: 1px solid #ffe7ba;
+}
+
+.rb-feature-status-badge.status-completed {
+    background: #e7f9ed;
+    color: #2f9e44;
+    border: 1px solid #c3f0d1;
+}
+
 .rb-quick-actions .button {
     margin: 0;
 }

@@ -1,0 +1,40 @@
+{
+  "title": "Phase 2 – Vận hành và đo lường tiến độ",
+  "summary": "Hoàn thiện luồng cập nhật bằng cách cho phép chỉnh sửa trạng thái và theo dõi lịch sử thay đổi.",
+  "themes": [
+    "Progress control",
+    "Transparency"
+  ],
+  "features": [
+    {
+      "id": "status-management",
+      "name": "Chỉnh sửa trạng thái trong trang quản trị",
+      "description": "Quản trị viên có thể chọn trạng thái mới cho từng hạng mục và lưu trực tiếp.",
+      "benefit": "Đảm bảo roadmap luôn phản ánh tiến độ thực tế.",
+      "owner": "CS Team",
+      "success_metric": "Ít nhất 1 cập nhật trạng thái mỗi tuần",
+      "tags": ["workflow", "editor"],
+      "default_status": "completed"
+    },
+    {
+      "id": "last-updated-indicator",
+      "name": "Hiển thị mốc cập nhật gần nhất",
+      "description": "Ghi nhận thời gian cập nhật cuối cùng và hiển thị để mọi người dễ theo dõi.",
+      "benefit": "Tăng tính minh bạch khi trao đổi với chủ nhà hàng.",
+      "owner": "Support",
+      "success_metric": "100% lần cập nhật ghi nhận mốc thời gian",
+      "tags": ["timestamp", "transparency"],
+      "default_status": "completed"
+    },
+    {
+      "id": "status-labels",
+      "name": "Chuẩn hoá nhãn trạng thái",
+      "description": "Dùng nhãn thống nhất và hỗ trợ đa ngôn ngữ cho các trạng thái tiến độ.",
+      "benefit": "Tránh hiểu sai khi team đa ngôn ngữ cùng xem roadmap.",
+      "owner": "Localization",
+      "success_metric": "Nhãn hiển thị đúng ở cả tiếng Việt và tiếng Anh",
+      "tags": ["localization", "ui"],
+      "default_status": "completed"
+    }
+  ]
+}
