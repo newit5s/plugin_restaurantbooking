@@ -349,6 +349,105 @@
     border: 1px solid #c3f0d1;
 }
 
+.rb-feature-changelog {
+    margin: 24px 0;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #dfe3eb;
+    border-radius: 8px;
+}
+
+.rb-feature-changelog h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.rb-feature-changelog ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.rb-feature-changelog li {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.rb-changelog-date {
+    display: inline-block;
+    min-width: 160px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.rb-changelog-feature {
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.rb-changelog-summary {
+    color: #0f172a;
+}
+
+.rb-changelog-tags {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 12px;
+    color: #475569;
+}
+
+.rb-feature-notifications {
+    margin-top: 32px;
+    background: #fff;
+    border: 1px solid #dfe3eb;
+    border-radius: 8px;
+    padding: 24px;
+}
+
+.rb-feature-notifications-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin: 10px 0 20px;
+}
+
+.rb-feature-notifications-statuses {
+    border: 1px solid #e2e8f0;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+}
+
+.rb-feature-notifications-statuses legend {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.rb-feature-notifications-statuses label {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 16px;
+    gap: 6px;
+}
+
+.rb-feature-notifications textarea {
+    margin-top: 6px;
+}
+
+.rb-feature-tokens {
+    margin-top: 16px;
+}
+
+.rb-feature-tokens ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.rb-feature-tokens li {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
 .rb-quick-actions .button {
     margin: 0;
 }

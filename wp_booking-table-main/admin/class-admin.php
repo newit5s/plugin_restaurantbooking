@@ -1805,6 +1805,10 @@ class RB_Admin {
         $status_labels = RB_Update_Features::get_status_labels();
         $last_updated = RB_Update_Features::get_last_updated_at();
         $last_updated_display = '';
+        $notification_settings = RB_Update_Features::get_notification_settings();
+        $subscribers_text = RB_Update_Features::get_subscribers_text();
+        $available_tokens = RB_Update_Features::get_available_interest_tokens();
+        $changelog_entries = RB_Update_Features::get_changelog_entries(8);
 
         if (!empty($last_updated)) {
             $timestamp = strtotime($last_updated);
@@ -1830,6 +1834,28 @@ class RB_Admin {
                     );
                     ?>
                 </p>
+            <?php endif; ?>
+
+            <?php if (!empty($changelog_entries)) : ?>
+                <div class="rb-feature-changelog">
+                    <h2><?php esc_html_e('Nhật ký cập nhật gần đây', 'restaurant-booking'); ?></h2>
+                    <ul>
+                        <?php foreach ($changelog_entries as $entry) : ?>
+                            <?php
+                            $entry_timestamp = isset($entry['timestamp']) ? strtotime($entry['timestamp']) : false;
+                            $entry_date = $entry_timestamp ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $entry_timestamp) : '';
+                            ?>
+                            <li>
+                                <span class="rb-changelog-date"><?php echo esc_html($entry_date); ?></span>
+                                <span class="rb-changelog-feature"><?php echo esc_html($entry['feature_name']); ?></span>
+                                <span class="rb-changelog-summary"><?php echo esc_html($entry['summary']); ?></span>
+                                <?php if (!empty($entry['tags'])) : ?>
+                                    <span class="rb-changelog-tags"><?php echo esc_html(implode(', ', $entry['tags'])); ?></span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
             <?php endif; ?>
 
             <form method="post" action="">
@@ -1930,9 +1956,48 @@ class RB_Admin {
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
-
-                    <?php submit_button(__('Lưu cập nhật roadmap', 'restaurant-booking')); ?>
                 <?php endif; ?>
+
+                <div class="rb-feature-notifications">
+                    <h2><?php esc_html_e('Thông báo tự động', 'restaurant-booking'); ?></h2>
+                    <p class="description"><?php esc_html_e('Thiết lập email thông báo mỗi khi trạng thái roadmap thay đổi để team và khách hàng chủ động nắm thông tin.', 'restaurant-booking'); ?></p>
+
+                    <label class="rb-feature-notifications-toggle">
+                        <input type="checkbox" name="feature_notifications[enabled]" value="1" <?php checked($notification_settings['enabled']); ?>>
+                        <?php esc_html_e('Kích hoạt gửi email tự động', 'restaurant-booking'); ?>
+                    </label>
+
+                    <fieldset class="rb-feature-notifications-statuses">
+                        <legend><?php esc_html_e('Thông báo khi trạng thái chuyển sang', 'restaurant-booking'); ?></legend>
+                        <?php foreach ($status_labels as $key => $label) : ?>
+                            <label>
+                                <input type="checkbox" name="feature_notifications[notify_statuses][]" value="<?php echo esc_attr($key); ?>" <?php checked(in_array($key, $notification_settings['notify_statuses'], true)); ?>>
+                                <?php echo esc_html($label); ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </fieldset>
+
+                    <label for="subscriber-preferences">
+                        <strong><?php esc_html_e('Danh sách nhận thông báo', 'restaurant-booking'); ?></strong>
+                    </label>
+                    <textarea id="subscriber-preferences" name="subscriber_preferences" rows="5" class="widefat" placeholder="email@example.com|analytics,completed"><?php echo esc_textarea($subscribers_text); ?></textarea>
+                    <p class="description">
+                        <?php esc_html_e('Mỗi dòng gồm email và tuỳ chọn sau dấu “|”. Ví dụ: user@example.com|automation,completed. Để trống phần tuỳ chọn nếu muốn nhận mọi cập nhật.', 'restaurant-booking'); ?>
+                    </p>
+
+                    <?php if (!empty($available_tokens)) : ?>
+                        <div class="rb-feature-tokens">
+                            <p><strong><?php esc_html_e('Từ khoá ưu tiên khả dụng', 'restaurant-booking'); ?>:</strong></p>
+                            <ul>
+                                <?php foreach ($available_tokens as $token => $label) : ?>
+                                    <li><code><?php echo esc_html($token); ?></code> – <?php echo esc_html($label); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php submit_button(__('Lưu cập nhật roadmap', 'restaurant-booking')); ?>
             </form>
         </div>
         <?php
@@ -2010,7 +2075,14 @@ class RB_Admin {
 
                         $statuses = isset($_POST['feature_status']) ? wp_unslash($_POST['feature_status']) : array();
                         $changed = RB_Update_Features::bulk_update_statuses($statuses);
-                        $message = $changed ? 'feature_updates_saved' : 'feature_updates_noop';
+
+                        $notification_settings = isset($_POST['feature_notifications']) ? wp_unslash($_POST['feature_notifications']) : array();
+                        $notifications_changed = RB_Update_Features::save_notification_settings($notification_settings);
+
+                        $subscriber_preferences = isset($_POST['subscriber_preferences']) ? wp_unslash($_POST['subscriber_preferences']) : '';
+                        $subscribers_changed = RB_Update_Features::save_subscriber_preferences_from_text($subscriber_preferences);
+
+                        $message = ($changed || $notifications_changed || $subscribers_changed) ? 'feature_updates_saved' : 'feature_updates_noop';
 
                         wp_redirect(admin_url('admin.php?page=rb-feature-updates&message=' . $message));
                         exit;
