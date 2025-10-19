@@ -1,0 +1,384 @@
+.rb-timeline-wrap {
+    margin-top: 20px;
+}
+
+.rb-timeline-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.rb-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rb-toolbar-group.rb-toolbar-date {
+    flex-wrap: wrap;
+}
+
+.rb-toolbar-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.rb-timeline-select,
+.rb-timeline-date {
+    min-height: 32px;
+}
+
+.rb-date-controls {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.rb-date-controls .button {
+    min-width: 32px;
+    height: 32px;
+    line-height: 30px;
+    text-align: center;
+}
+
+.rb-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.rb-switch-label {
+    font-weight: 600;
+}
+
+.rb-timeline-refresh .dashicons {
+    margin-top: 4px;
+}
+
+.rb-timeline-status {
+    display: none;
+    margin-bottom: 10px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.rb-timeline-status.is-success {
+    display: block;
+    background: #e7f7ed;
+    color: #17663d;
+}
+
+.rb-timeline-status.is-error {
+    display: block;
+    background: #fbeaea;
+    color: #8a1f11;
+}
+
+.rb-timeline-status.is-warning {
+    display: block;
+    background: #fff7e5;
+    color: #7d5200;
+}
+
+.rb-timeline-status.is-info {
+    display: block;
+    background: #eef5ff;
+    color: #0a4b94;
+}
+
+.rb-timeline-app {
+    position: relative;
+    overflow-x: auto;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #fff;
+    min-height: 360px;
+}
+
+.rb-timeline-app.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 5;
+}
+
+.rb-timeline-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+}
+
+.rb-timeline-grid {
+    min-width: 720px;
+}
+
+.rb-timeline-row {
+    display: grid;
+    align-items: stretch;
+    border-bottom: 1px solid #edf1f5;
+    position: relative;
+}
+
+.rb-timeline-row:last-child {
+    border-bottom: none;
+}
+
+.rb-timeline-row--header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8f9fb;
+    box-shadow: inset 0 -1px 0 #dcdcde;
+}
+
+.rb-timeline-row.is-disabled {
+    opacity: 0.6;
+}
+
+.rb-timeline-cell {
+    border-right: 1px solid #edf1f5;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.rb-timeline-row--header .rb-timeline-cell {
+    font-weight: 600;
+    text-align: center;
+}
+
+.rb-timeline-cell--label {
+    text-align: left;
+}
+
+.rb-timeline-cell:last-child {
+    border-right: none;
+}
+
+.rb-timeline-cell--table {
+    background: #fefefe;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.rb-table-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.rb-table-status {
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.rb-table-status.is-available {
+    background: #e7f7ed;
+    color: #17663d;
+}
+
+.rb-table-status.is-unavailable {
+    background: #fbeaea;
+    color: #8a1f11;
+}
+
+.rb-table-meta {
+    font-size: 12px;
+    color: #50575e;
+}
+
+.rb-table-toggle {
+    align-self: flex-start;
+    font-size: 11px;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.rb-timeline-cell--slot {
+    min-height: 72px;
+    background: linear-gradient(transparent 60%, rgba(0, 0, 0, 0.02));
+}
+
+.rb-timeline-cell--slot.is-readonly {
+    background: #fafafa;
+}
+
+.rb-timeline-cell--slot.is-drop-target {
+    outline: 2px dashed #2271b1;
+    outline-offset: -2px;
+    background: rgba(34, 113, 177, 0.08);
+}
+
+.rb-booking-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    margin: 4px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    cursor: grab;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.rb-booking-block:active {
+    cursor: grabbing;
+    transform: scale(0.99);
+}
+
+.rb-booking-block .rb-booking-meta,
+.rb-booking-block .rb-booking-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rb-booking-block .rb-booking-status {
+    opacity: 0.8;
+}
+
+.rb-booking-actions {
+    margin-top: 4px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.rb-booking-action {
+    color: inherit;
+    font-weight: 600;
+}
+
+.rb-booking-action:hover,
+.rb-booking-action:focus {
+    text-decoration: underline;
+}
+
+.rb-timeline-empty-state {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #50575e;
+    font-size: 14px;
+}
+
+.rb-timeline-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.rb-timeline-modal.is-visible {
+    display: flex;
+}
+
+.rb-timeline-modal__dialog {
+    background: #fff;
+    border-radius: 8px;
+    max-width: 420px;
+    width: 90%;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+}
+
+.rb-timeline-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 24px;
+    line-height: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #50575e;
+}
+
+.rb-timeline-modal__content h2 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.rb-modal-customer {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.rb-modal-details {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.rb-modal-details li {
+    font-size: 13px;
+    color: #2c3338;
+}
+
+@media (max-width: 960px) {
+    .rb-timeline-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .rb-toolbar-group {
+        width: 100%;
+    }
+
+    .rb-toolbar-group.rb-toolbar-actions {
+        justify-content: space-between;
+    }
+
+    .rb-timeline-app {
+        border-radius: 4px;
+    }
+}
+
+@media (max-width: 600px) {
+    .rb-timeline-grid {
+        min-width: 100%;
+    }
+
+    .rb-date-controls {
+        width: 100%;
+    }
+
+    .rb-date-controls .button,
+    .rb-timeline-date {
+        flex: 1;
+    }
+
+    .rb-timeline-row--header {
+        position: static;
+    }
+}

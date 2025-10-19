@@ -55,7 +55,16 @@ class RB_Admin {
             'restaurant-booking',
             array($this, 'display_dashboard_page')
         );
-        
+
+        add_submenu_page(
+            'restaurant-booking',
+            __('Timeline', 'restaurant-booking'),
+            __('Timeline', 'restaurant-booking'),
+            'manage_options',
+            'rb-timeline',
+            array($this, 'display_timeline_page')
+        );
+
         add_submenu_page(
             'restaurant-booking',
             __('Tạo đặt bàn', 'restaurant-booking'),
@@ -2372,12 +2381,93 @@ class RB_Admin {
         }
     }
         
+    public function display_timeline_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $admin_language = $this->get_admin_language();
+        $backend_texts = RB_I18n::get_section_translations('backend', $admin_language);
+        $settings = get_option('rb_settings', array());
+        $locations = RB_I18n::get_locations();
+        $default_location = isset($settings['default_location']) ? RB_I18n::sanitize_location($settings['default_location']) : 'vn';
+        $today = current_time('mysql');
+        $today_date = $today ? substr($today, 0, 10) : date('Y-m-d');
+
+        $title = isset($backend_texts['timeline_title']) ? $backend_texts['timeline_title'] : __('Booking timeline', 'restaurant-booking');
+        $location_label = isset($backend_texts['timeline_location_filter']) ? $backend_texts['timeline_location_filter'] : __('Location', 'restaurant-booking');
+        $date_label = isset($backend_texts['timeline_date_label']) ? $backend_texts['timeline_date_label'] : __('Date', 'restaurant-booking');
+        $auto_refresh_label = isset($backend_texts['timeline_auto_refresh_label']) ? $backend_texts['timeline_auto_refresh_label'] : __('Auto refresh', 'restaurant-booking');
+        $manual_refresh_label = isset($backend_texts['timeline_manual_refresh_label']) ? $backend_texts['timeline_manual_refresh_label'] : __('Refresh timeline', 'restaurant-booking');
+
+        ?>
+        <div class="wrap rb-timeline-wrap">
+            <h1><?php echo esc_html($title); ?></h1>
+
+            <div id="rb-timeline-toolbar" class="rb-timeline-toolbar">
+                <div class="rb-toolbar-group">
+                    <label for="rb-timeline-location" class="rb-toolbar-label"><?php echo esc_html($location_label); ?></label>
+                    <select id="rb-timeline-location" class="rb-timeline-select">
+                        <?php foreach ($locations as $code => $location) : ?>
+                            <option value="<?php echo esc_attr($code); ?>" <?php selected($default_location, $code); ?>>
+                                <?php echo esc_html((isset($location['flag']) ? $location['flag'] . ' ' : '') . RB_I18n::get_location_label($code, $admin_language)); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="rb-toolbar-group rb-toolbar-date">
+                    <label for="rb-timeline-date" class="rb-toolbar-label"><?php echo esc_html($date_label); ?></label>
+                    <div class="rb-date-controls">
+                        <button type="button" class="button rb-timeline-prev" aria-label="<?php echo esc_attr__('Previous day', 'restaurant-booking'); ?>">&lsaquo;</button>
+                        <input type="date" id="rb-timeline-date" class="rb-timeline-date" value="<?php echo esc_attr($today_date); ?>" />
+                        <button type="button" class="button rb-timeline-next" aria-label="<?php echo esc_attr__('Next day', 'restaurant-booking'); ?>">&rsaquo;</button>
+                        <button type="button" class="button rb-timeline-today"><?php echo esc_html__('Today', 'restaurant-booking'); ?></button>
+                    </div>
+                </div>
+
+                <div class="rb-toolbar-group rb-toolbar-actions">
+                    <label class="rb-switch">
+                        <input type="checkbox" id="rb-timeline-auto-refresh" checked>
+                        <span class="rb-switch-label"><?php echo esc_html($auto_refresh_label); ?></span>
+                    </label>
+                    <button type="button" class="button button-secondary rb-timeline-refresh">
+                        <span class="dashicons dashicons-update"></span>
+                        <?php echo esc_html($manual_refresh_label); ?>
+                    </button>
+                </div>
+            </div>
+
+            <div id="rb-timeline-status" class="rb-timeline-status" role="status" aria-live="polite"></div>
+
+            <div id="rb-timeline-app" class="rb-timeline-app" data-default-date="<?php echo esc_attr($today_date); ?>" data-default-location="<?php echo esc_attr($default_location); ?>">
+                <div class="rb-timeline-empty-state">
+                    <span class="spinner is-active"></span>
+                    <p><?php echo esc_html__('Loading timeline…', 'restaurant-booking'); ?></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="rb-timeline-modal" class="rb-timeline-modal" aria-hidden="true" role="dialog" aria-modal="true">
+            <div class="rb-timeline-modal__dialog" role="document">
+                <button type="button" class="rb-timeline-modal__close" aria-label="<?php echo esc_attr__('Close', 'restaurant-booking'); ?>">&times;</button>
+                <div class="rb-timeline-modal__content"></div>
+            </div>
+        </div>
+        <?php
+    }
+
     private function get_status_label($status) {
         $labels = array(
             'pending' => 'Chờ xác nhận',
             'confirmed' => 'Đã xác nhận',
             'cancelled' => 'Đã hủy',
-            'completed' => 'Hoàn thành'
+            'completed' => 'Hoàn thành',
+            'checked_in' => 'Đã check-in'
         );
         
         return isset($labels[$status]) ? $labels[$status] : $status;
