@@ -1,0 +1,40 @@
+{
+  "title": "Phase 4 – Phân tích tác động và tối ưu hoá",
+  "summary": "Tập trung đo lường hiệu quả từng hạng mục và cải thiện quy trình ra quyết định dựa trên dữ liệu.",
+  "themes": [
+    "Insight analytics",
+    "Continuous improvement"
+  ],
+  "features": [
+    {
+      "id": "impact-dashboard",
+      "name": "Dashboard đo lường tác động",
+      "description": "Tạo bảng điều khiển tổng hợp lượt sử dụng và phản hồi cho từng tính năng đã phát hành.",
+      "benefit": "Giúp ưu tiên đầu tư vào các hạng mục mang lại hiệu quả cao.",
+      "owner": "Data Team",
+      "success_metric": "100% tính năng có ít nhất 1 chỉ số hiệu suất được theo dõi",
+      "tags": ["analytics", "dashboard"],
+      "default_status": "planned"
+    },
+    {
+      "id": "feedback-loop",
+      "name": "Luồng phản hồi chủ nhà hàng",
+      "description": "Thu thập đánh giá định tính ngay trên trang roadmap để hiểu rõ trải nghiệm sử dụng.",
+      "benefit": "Đảm bảo quyết định ưu tiên dựa trên tiếng nói khách hàng.",
+      "owner": "Research",
+      "success_metric": "Tối thiểu 10 phản hồi/tháng được ghi nhận",
+      "tags": ["feedback", "ux"],
+      "default_status": "planned"
+    },
+    {
+      "id": "experiment-tracker",
+      "name": "Theo dõi thử nghiệm cải tiến",
+      "description": "Ghi nhận giả thuyết, kết quả và quyết định tiếp theo cho mỗi thử nghiệm tối ưu hoá.",
+      "benefit": "Giúp team học hỏi nhanh và tránh lặp lại thất bại.",
+      "owner": "Growth",
+      "success_metric": "Mỗi thử nghiệm có bản ghi kết quả trong vòng 48 giờ",
+      "tags": ["experimentation", "process"],
+      "default_status": "planned"
+    }
+  ]
+}

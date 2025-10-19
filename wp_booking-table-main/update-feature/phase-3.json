@@ -1,0 +1,40 @@
+{
+  "title": "Phase 3 – Tự động hoá chia sẻ tiến độ",
+  "summary": "Tối ưu quy trình thông báo cập nhật để cổ đông nội bộ và khách hàng luôn nắm rõ thay đổi mới nhất.",
+  "themes": [
+    "Automation",
+    "Stakeholder communication"
+  ],
+  "features": [
+    {
+      "id": "release-notifications",
+      "name": "Thông báo cập nhật tự động",
+      "description": "Gửi email hoặc Slack tự động mỗi khi một hạng mục đổi trạng thái.",
+      "benefit": "Giảm độ trễ thông tin giữa team sản phẩm và CS.",
+      "owner": "Marketing",
+      "success_metric": "90% cập nhật được gửi thông báo trong vòng 5 phút",
+      "tags": ["automation", "communication"],
+      "default_status": "planned"
+    },
+    {
+      "id": "changelog-summary",
+      "name": "Tóm tắt changelog",
+      "description": "Tự động sinh mô tả ngắn gọn cho mỗi lần cập nhật để chèn vào trang thông báo.",
+      "benefit": "Giúp người xem nhanh chóng hiểu giá trị thay đổi.",
+      "owner": "Product Marketing",
+      "success_metric": "Ít nhất 80% bản cập nhật có mô tả được phê duyệt mà không cần chỉnh sửa",
+      "tags": ["ai", "copywriting"],
+      "default_status": "planned"
+    },
+    {
+      "id": "subscriber-preferences",
+      "name": "Tuỳ chọn nhận thông báo",
+      "description": "Cho phép người dùng đăng ký nhận thông báo theo chủ đề hoặc mức độ ưu tiên.",
+      "benefit": "Đảm bảo thông tin đến đúng người cần.",
+      "owner": "Customer Success",
+      "success_metric": "Tỷ lệ huỷ đăng ký thông báo < 5%",
+      "tags": ["preferences", "user-experience"],
+      "default_status": "planned"
+    }
+  ]
+}
