@@ -127,12 +127,107 @@ function rb_admin_enqueue_scripts($hook) {
     if (strpos($hook, 'restaurant-booking') !== false || strpos($hook, 'rb-') !== false) {
         wp_enqueue_style('rb-admin-css', RB_PLUGIN_URL . 'assets/css/admin.css', array(), RB_VERSION);
         wp_enqueue_script('rb-admin-js', RB_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), RB_VERSION, true);
-        
+
         // Localize script
         wp_localize_script('rb-admin-js', 'rb_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('rb_admin_nonce')
         ));
+
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        $is_timeline_screen = $screen && $screen->id === 'restaurant-booking_page_rb-timeline';
+
+        if ($is_timeline_screen) {
+            if (!class_exists('RB_I18n')) {
+                require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+            }
+
+            global $rb_booking;
+            if (!$rb_booking instanceof RB_Booking) {
+                require_once RB_PLUGIN_DIR . 'includes/class-booking.php';
+                $rb_booking = new RB_Booking();
+            }
+
+            $locale = function_exists('get_user_locale') ? get_user_locale() : get_locale();
+            $language = RB_I18n::get_language_from_locale($locale);
+
+            $settings = get_option('rb_settings', array());
+            $default_location = isset($settings['default_location']) ? RB_I18n::sanitize_location($settings['default_location']) : 'vn';
+            $today = current_time('mysql');
+            $today_date = $today ? substr($today, 0, 10) : date('Y-m-d');
+
+            $initial_payload = $rb_booking->get_timeline_payload($today_date, $default_location);
+            if (is_wp_error($initial_payload)) {
+                $initial_payload = null;
+            }
+
+            $locations = array();
+            foreach (RB_I18n::get_locations() as $code => $location) {
+                $locations[] = array(
+                    'code' => $code,
+                    'flag' => isset($location['flag']) ? $location['flag'] : '',
+                    'label' => RB_I18n::get_location_label($code, $language),
+                );
+            }
+
+            $status_colors = array(
+                'pending' => '#f0ad4e',
+                'confirmed' => '#5bc0de',
+                'checked_in' => '#5cb85c',
+                'completed' => '#428bca',
+                'cancelled' => '#d9534f',
+                'no-show' => '#795548',
+            );
+
+            $i18n = array(
+                'loading' => __('Loading timeline…', 'restaurant-booking'),
+                'noData' => __('No bookings found for this day.', 'restaurant-booking'),
+                'error' => __('Unable to load timeline data. Please try again.', 'restaurant-booking'),
+                'autoRefreshOn' => __('Auto refresh enabled', 'restaurant-booking'),
+                'autoRefreshOff' => __('Auto refresh paused', 'restaurant-booking'),
+                'checkInConfirm' => __('Mark this booking as checked-in?', 'restaurant-booking'),
+                'checkOutConfirm' => __('Mark this booking as completed?', 'restaurant-booking'),
+                'dragTooltip' => __('Drag to reschedule booking', 'restaurant-booking'),
+                'tableUnavailable' => __('Table is currently disabled', 'restaurant-booking'),
+                'statusAvailable' => __('Available', 'restaurant-booking'),
+                'statusUnavailable' => __('Unavailable', 'restaurant-booking'),
+                'modalTitle' => __('Reservation details', 'restaurant-booking'),
+                'close' => __('Close', 'restaurant-booking'),
+                'refresh' => __('Refreshing timeline…', 'restaurant-booking'),
+                'today' => __('Today', 'restaurant-booking'),
+                'previousDay' => __('Previous day', 'restaurant-booking'),
+                'nextDay' => __('Next day', 'restaurant-booking'),
+                'tableHeader' => __('Table', 'restaurant-booking'),
+                'capacityLabel' => __('Capacity', 'restaurant-booking'),
+                'guestLabel' => __('Guests', 'restaurant-booking'),
+                'timeLabel' => __('Time', 'restaurant-booking'),
+                'statusLabel' => __('Status', 'restaurant-booking'),
+                'sourceLabel' => __('Source', 'restaurant-booking'),
+                'notesLabel' => __('Notes', 'restaurant-booking'),
+                'specialRequestLabel' => __('Special requests', 'restaurant-booking'),
+                'checkIn' => __('Check-in', 'restaurant-booking'),
+                'checkOut' => __('Check-out', 'restaurant-booking'),
+                'toggleAvailability' => __('Toggle availability', 'restaurant-booking'),
+                'dragDisabled' => __('Cannot move booking to an unavailable table.', 'restaurant-booking'),
+                'updated' => __('Timeline updated', 'restaurant-booking'),
+                'unassigned' => __('Unassigned', 'restaurant-booking'),
+            );
+
+            wp_enqueue_style('rb-admin-timeline', RB_PLUGIN_URL . 'assets/css/timeline.css', array('rb-admin-css'), RB_VERSION);
+            wp_enqueue_script('rb-admin-timeline', RB_PLUGIN_URL . 'assets/js/admin-timeline.js', array('jquery'), RB_VERSION, true);
+
+            wp_localize_script('rb-admin-timeline', 'rbTimelineData', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('rb_admin_nonce'),
+                'locations' => $locations,
+                'defaultLocation' => $default_location,
+                'today' => $today_date,
+                'initialData' => $initial_payload,
+                'statusColors' => $status_colors,
+                'i18n' => $i18n,
+                'autoRefreshInterval' => apply_filters('rb_timeline_auto_refresh_interval', 60000),
+            ));
+        }
     }
 }
 

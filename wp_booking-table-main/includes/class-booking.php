@@ -245,7 +245,7 @@ class RB_Booking {
             WHERE booking_date = %s
             AND booking_time = %s
             AND location = %s
-            AND status IN ('pending', 'confirmed')";
+            AND status IN ('pending', 'confirmed', 'checked_in')";
 
         $params = array($date, $time, $location);
 
@@ -284,7 +284,7 @@ class RB_Booking {
                 WHERE b.booking_date = %s
                   AND b.booking_time = %s
                   AND b.location = %s
-                  AND b.status IN ('confirmed', 'pending')
+                  AND b.status IN ('confirmed', 'pending', 'checked_in')
                   AND b.table_number IS NOT NULL
               )
              ORDER BY t.capacity ASC, t.table_number ASC
@@ -322,7 +322,7 @@ class RB_Booking {
                 WHERE y.booking_date = %s
                   AND y.booking_time = %s
                   AND y.location = %s
-                  AND y.status IN ('confirmed', 'pending')
+                  AND y.status IN ('confirmed', 'pending', 'checked_in')
                   AND y.table_number IS NOT NULL
               )",
             $location,
@@ -333,5 +333,302 @@ class RB_Booking {
         );
 
         return (int) $wpdb->get_var($sql);
+    }
+
+    /**
+     * Mark a booking as checked-in for the timeline dashboard.
+     */
+    public function check_in_booking($booking_id) {
+        $booking = $this->get_booking($booking_id);
+
+        if (!$booking) {
+            return new WP_Error('rb_booking_not_found', __('Booking not found', 'restaurant-booking'));
+        }
+
+        if (in_array($booking->status, array('cancelled', 'completed'), true)) {
+            return new WP_Error('rb_booking_invalid_status', __('Cannot check in this booking', 'restaurant-booking'));
+        }
+
+        $data = array('status' => 'checked_in');
+
+        if (empty($booking->confirmed_at)) {
+            $data['confirmed_at'] = current_time('mysql');
+        }
+
+        $updated = $this->update_booking($booking_id, $data);
+
+        if (!$updated) {
+            return new WP_Error('rb_booking_update_failed', __('Failed to update booking', 'restaurant-booking'));
+        }
+
+        return true;
+    }
+
+    /**
+     * Mark a booking as completed / checked-out from timeline.
+     */
+    public function check_out_booking($booking_id) {
+        $booking = $this->get_booking($booking_id);
+
+        if (!$booking) {
+            return new WP_Error('rb_booking_not_found', __('Booking not found', 'restaurant-booking'));
+        }
+
+        if ($booking->status === 'cancelled') {
+            return new WP_Error('rb_booking_invalid_status', __('Cannot complete a cancelled booking', 'restaurant-booking'));
+        }
+
+        $updated = $this->update_booking($booking_id, array('status' => 'completed'));
+
+        if (!$updated) {
+            return new WP_Error('rb_booking_update_failed', __('Failed to update booking', 'restaurant-booking'));
+        }
+
+        if (class_exists('RB_Customer')) {
+            global $rb_customer;
+            if ($rb_customer) {
+                $rb_customer->mark_completed($booking_id);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Move booking to another slot / table via timeline drag and drop.
+     */
+    public function move_booking($booking_id, $table_number, $date, $time, $location) {
+        $booking = $this->get_booking($booking_id);
+
+        if (!$booking) {
+            return new WP_Error('rb_booking_not_found', __('Booking not found', 'restaurant-booking'));
+        }
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $location = RB_I18n::sanitize_location($location);
+
+        $date_obj = DateTime::createFromFormat('Y-m-d', $date);
+        if (!$date_obj || $date_obj->format('Y-m-d') !== $date) {
+            return new WP_Error('rb_booking_invalid_date', __('Invalid booking date', 'restaurant-booking'));
+        }
+
+        $time_obj = DateTime::createFromFormat('H:i', $time);
+        if (!$time_obj) {
+            return new WP_Error('rb_booking_invalid_time', __('Invalid booking time', 'restaurant-booking'));
+        }
+
+        $is_available = $this->is_time_slot_available($date, $time, (int) $booking->guest_count, $location, $booking_id);
+        if (!$is_available) {
+            return new WP_Error('rb_booking_unavailable', __('Selected slot is no longer available', 'restaurant-booking'));
+        }
+
+        $table_name = $this->wpdb->prefix . 'rb_bookings';
+        $result = $this->wpdb->update(
+            $table_name,
+            array(
+                'booking_date' => $date,
+                'booking_time' => $time_obj->format('H:i'),
+                'table_number' => $table_number,
+                'location' => $location,
+            ),
+            array('id' => $booking_id),
+            array('%s', '%s', '%d', '%s'),
+            array('%d')
+        );
+
+        if ($result === false) {
+            return new WP_Error('rb_booking_update_failed', __('Failed to update booking', 'restaurant-booking'));
+        }
+
+        return true;
+    }
+
+    /**
+     * Build data payload for the admin timeline interface.
+     */
+    public function get_timeline_payload($date, $location) {
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $location = RB_I18n::sanitize_location($location);
+
+        $date_obj = DateTime::createFromFormat('Y-m-d', $date);
+        if (!$date_obj || $date_obj->format('Y-m-d') !== $date) {
+            return new WP_Error('rb_booking_invalid_date', __('Invalid booking date', 'restaurant-booking'));
+        }
+
+        $settings = get_option('rb_settings', array());
+        $interval = isset($settings['time_slot_interval']) ? intval($settings['time_slot_interval']) : 30;
+        $interval = $interval > 0 ? $interval : 30;
+        $block_duration = isset($settings['timeline_block_duration']) ? intval($settings['timeline_block_duration']) : 90;
+        $block_duration = $block_duration > 0 ? $block_duration : $interval;
+
+        $time_slots = $this->generate_timeline_slots($settings);
+
+        $tables_table = $this->wpdb->prefix . 'rb_tables';
+        $bookings_table = $this->wpdb->prefix . 'rb_bookings';
+
+        $tables = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT id, table_number, capacity, is_available FROM {$tables_table} WHERE location = %s ORDER BY table_number ASC",
+            $location
+        ));
+
+        $bookings = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT id, customer_name, guest_count, booking_time, status, table_number, special_requests, booking_source, admin_notes"
+            . " FROM {$bookings_table}"
+            . " WHERE booking_date = %s AND location = %s ORDER BY booking_time ASC",
+            $date,
+            $location
+        ));
+
+        $table_payload = array();
+        foreach ($tables as $table) {
+            $table_payload[] = array(
+                'id' => (int) $table->id,
+                'table_number' => (int) $table->table_number,
+                'capacity' => (int) $table->capacity,
+                'is_available' => (int) $table->is_available,
+            );
+        }
+
+        $booking_payload = array();
+        foreach ($bookings as $booking) {
+            $booking_payload[] = $this->format_timeline_booking($booking, $block_duration);
+        }
+
+        $locale = function_exists('get_user_locale') ? get_user_locale() : get_locale();
+        $language = RB_I18n::get_language_from_locale($locale);
+
+        $status_labels = array(
+            'pending' => __('Pending', 'restaurant-booking'),
+            'confirmed' => __('Confirmed', 'restaurant-booking'),
+            'checked_in' => __('Checked-in', 'restaurant-booking'),
+            'completed' => __('Completed', 'restaurant-booking'),
+            'cancelled' => __('Cancelled', 'restaurant-booking'),
+            'no-show' => __('No show', 'restaurant-booking'),
+        );
+
+        $generated_at = current_time('mysql');
+        $timezone_string = function_exists('wp_timezone_string') ? wp_timezone_string() : get_option('timezone_string');
+        if (empty($timezone_string)) {
+            $timezone_string = date_default_timezone_get();
+        }
+
+        return array(
+            'date' => $date_obj->format('Y-m-d'),
+            'location' => $location,
+            'location_label' => RB_I18n::get_location_label($location, $language),
+            'timeSlots' => $time_slots,
+            'interval' => $interval,
+            'blockDuration' => $block_duration,
+            'tables' => $table_payload,
+            'bookings' => $booking_payload,
+            'statusLabels' => $status_labels,
+            'counts' => array(
+                'tables' => count($table_payload),
+                'bookings' => count($booking_payload),
+            ),
+            'meta' => array(
+                'generated_at' => $generated_at,
+                'timezone' => $timezone_string,
+            ),
+        );
+    }
+
+    /**
+     * Format booking row for timeline payload.
+     */
+    private function format_timeline_booking($booking, $block_duration) {
+        $start = DateTime::createFromFormat('H:i', $booking->booking_time);
+        if (!$start) {
+            $start = DateTime::createFromFormat('H:i', '00:00');
+        }
+
+        $end = clone $start;
+        $end->modify('+' . intval($block_duration) . ' minutes');
+
+        return array(
+            'id' => (int) $booking->id,
+            'customer_name' => $booking->customer_name,
+            'guest_count' => (int) $booking->guest_count,
+            'table_number' => $booking->table_number ? (int) $booking->table_number : null,
+            'status' => $booking->status,
+            'start' => $start ? $start->format('H:i') : $booking->booking_time,
+            'end' => $end->format('H:i'),
+            'special_requests' => $booking->special_requests,
+            'booking_source' => $booking->booking_source,
+            'admin_notes' => $booking->admin_notes,
+        );
+    }
+
+    /**
+     * Build time slots respecting plugin working hour settings.
+     */
+    private function generate_timeline_slots($settings) {
+        $mode = isset($settings['working_hours_mode']) ? $settings['working_hours_mode'] : 'simple';
+        $interval = isset($settings['time_slot_interval']) ? intval($settings['time_slot_interval']) : 30;
+        $interval = $interval > 0 ? $interval : 30;
+        $buffer = isset($settings['booking_buffer_time']) ? intval($settings['booking_buffer_time']) : 0;
+
+        $slots = array();
+
+        if ($mode === 'advanced') {
+            $morning_start = isset($settings['morning_shift_start']) ? $settings['morning_shift_start'] : '09:00';
+            $morning_end = isset($settings['morning_shift_end']) ? $settings['morning_shift_end'] : '14:00';
+            $evening_start = isset($settings['evening_shift_start']) ? $settings['evening_shift_start'] : '17:00';
+            $evening_end = isset($settings['evening_shift_end']) ? $settings['evening_shift_end'] : '22:00';
+
+            $slots = array_merge(
+                $slots,
+                $this->generate_timeline_shift_slots($morning_start, $morning_end, $interval, $buffer),
+                $this->generate_timeline_shift_slots($evening_start, $evening_end, $interval, $buffer)
+            );
+        } else {
+            $opening_time = isset($settings['opening_time']) ? $settings['opening_time'] : '09:00';
+            $closing_time = isset($settings['closing_time']) ? $settings['closing_time'] : '22:00';
+
+            if (isset($settings['lunch_break_enabled']) && $settings['lunch_break_enabled'] === 'yes') {
+                $lunch_start = isset($settings['lunch_break_start']) ? $settings['lunch_break_start'] : '14:00';
+                $lunch_end = isset($settings['lunch_break_end']) ? $settings['lunch_break_end'] : '17:00';
+
+                $slots = array_merge(
+                    $this->generate_timeline_shift_slots($opening_time, $lunch_start, $interval, $buffer),
+                    $this->generate_timeline_shift_slots($lunch_end, $closing_time, $interval, $buffer)
+                );
+            } else {
+                $slots = $this->generate_timeline_shift_slots($opening_time, $closing_time, $interval, $buffer);
+            }
+        }
+
+        $slots = array_unique($slots);
+        sort($slots);
+
+        return array_values($slots);
+    }
+
+    /**
+     * Generate time slots for a single shift.
+     */
+    private function generate_timeline_shift_slots($start, $end, $interval, $buffer = 0) {
+        $slots = array();
+        $start_time = strtotime($start);
+        $end_time = strtotime($end);
+
+        if (!$start_time || !$end_time) {
+            return $slots;
+        }
+
+        $step = ($interval + max(0, $buffer)) * 60;
+
+        while ($start_time < $end_time) {
+            $slots[] = date('H:i', $start_time);
+            $start_time += $step;
+        }
+
+        return $slots;
     }
 }
