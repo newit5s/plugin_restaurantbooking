@@ -570,7 +570,7 @@
                 method: 'POST',
                 dataType: 'json',
                 data: {
-                    action: 'rb_timeline_check_in',
+                    action: 'rb_mark_checkin',
                     nonce: this.settings.nonce,
                     booking_id: bookingId
                 }
@@ -601,7 +601,7 @@
                 method: 'POST',
                 dataType: 'json',
                 data: {
-                    action: 'rb_timeline_check_out',
+                    action: 'rb_mark_checkout',
                     nonce: this.settings.nonce,
                     booking_id: bookingId
                 }
