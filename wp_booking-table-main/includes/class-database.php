@@ -60,7 +60,7 @@ class RB_Database {
     }
     
     private function create_tables_table() {
-            $table_name = $this->wpdb->prefix . 'rb_tables';
+        $table_name = $this->wpdb->prefix . 'rb_tables';
 
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id int(11) NOT NULL AUTO_INCREMENT,
@@ -68,6 +68,7 @@ class RB_Database {
             capacity int(11) NOT NULL,
             location varchar(50) DEFAULT 'vn',
             is_available tinyint(1) DEFAULT 1,
+            current_status varchar(20) DEFAULT 'available',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY table_number (table_number)
@@ -146,6 +147,7 @@ class RB_Database {
         }
 
         $tables_table = $this->wpdb->prefix . 'rb_tables';
+
         if (!$this->column_exists($tables_table, 'location')) {
             $this->wpdb->query(
                 "ALTER TABLE $tables_table
@@ -153,6 +155,16 @@ class RB_Database {
             );
             $this->wpdb->query(
                 "UPDATE $tables_table SET location = 'vn' WHERE location IS NULL OR location = ''"
+            );
+        }
+
+        if (!$this->column_exists($tables_table, 'current_status')) {
+            $this->wpdb->query(
+                "ALTER TABLE $tables_table"
+                . " ADD COLUMN current_status varchar(20) DEFAULT 'available' AFTER is_available"
+            );
+            $this->wpdb->query(
+                "UPDATE $tables_table SET current_status = 'available' WHERE current_status IS NULL OR current_status = ''"
             );
         }
     }
@@ -179,9 +191,10 @@ class RB_Database {
                         'capacity' => ($i <= 4) ? 2 : (($i <= 8) ? 4 : 6),
                         'location' => 'vn',
                         'is_available' => 1,
+                        'current_status' => 'available',
                         'created_at' => current_time('mysql')
                     ),
-                    array('%d', '%d', '%s', '%d', '%s')
+                    array('%d', '%d', '%s', '%d', '%s', '%s')
                 );
             }
         }

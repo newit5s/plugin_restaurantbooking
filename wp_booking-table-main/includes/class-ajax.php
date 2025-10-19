@@ -30,8 +30,10 @@ class RB_Ajax {
         // Timeline dashboard endpoints
         add_action('wp_ajax_rb_get_timeline_data', array($this, 'get_timeline_data'));
         add_action('wp_ajax_rb_update_table_status', array($this, 'update_table_status'));
-        add_action('wp_ajax_rb_timeline_check_in', array($this, 'timeline_check_in'));
-        add_action('wp_ajax_rb_timeline_check_out', array($this, 'timeline_check_out'));
+        add_action('wp_ajax_rb_timeline_check_in', array($this, 'mark_checkin'));
+        add_action('wp_ajax_rb_timeline_check_out', array($this, 'mark_checkout'));
+        add_action('wp_ajax_rb_mark_checkin', array($this, 'mark_checkin'));
+        add_action('wp_ajax_rb_mark_checkout', array($this, 'mark_checkout'));
         add_action('wp_ajax_rb_move_booking', array($this, 'move_booking'));
     }
     
@@ -467,40 +469,23 @@ class RB_Ajax {
     /**
      * Mark booking as checked-in from the timeline dashboard.
      */
-    public function timeline_check_in() {
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Unauthorized', 'restaurant-booking'));
-        }
-
-        if (!check_ajax_referer('rb_admin_nonce', 'nonce', false)) {
-            wp_send_json_error(array('message' => __('Security check failed', 'restaurant-booking')));
-        }
-
-        $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
-
-        if (!$booking_id) {
-            wp_send_json_error(array('message' => __('Invalid booking ID', 'restaurant-booking')));
-        }
-
-        global $rb_booking;
-        if (!$rb_booking instanceof RB_Booking) {
-            require_once RB_PLUGIN_DIR . 'includes/class-booking.php';
-            $rb_booking = new RB_Booking();
-        }
-
-        $result = $rb_booking->check_in_booking($booking_id);
-
-        if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
-        }
-
-        wp_send_json_success(array('message' => __('Guest checked in successfully', 'restaurant-booking')));
+    public function mark_checkin() {
+        $this->handle_mark_check('checkin');
     }
 
-    /**
-     * Mark booking as checked-out / completed from timeline.
-     */
+    public function mark_checkout() {
+        $this->handle_mark_check('checkout');
+    }
+
+    public function timeline_check_in() {
+        $this->mark_checkin();
+    }
+
     public function timeline_check_out() {
+        $this->mark_checkout();
+    }
+
+    private function handle_mark_check($action) {
         if (!current_user_can('manage_options')) {
             wp_die(__('Unauthorized', 'restaurant-booking'));
         }
@@ -521,13 +506,19 @@ class RB_Ajax {
             $rb_booking = new RB_Booking();
         }
 
-        $result = $rb_booking->check_out_booking($booking_id);
+        if ($action === 'checkin') {
+            $result = $rb_booking->check_in_booking($booking_id);
+            $success_message = __('Guest checked in successfully', 'restaurant-booking');
+        } else {
+            $result = $rb_booking->check_out_booking($booking_id);
+            $success_message = __('Guest checked out successfully', 'restaurant-booking');
+        }
 
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));
         }
 
-        wp_send_json_success(array('message' => __('Guest checked out successfully', 'restaurant-booking')));
+        wp_send_json_success(array('message' => $success_message));
     }
 
     /**
