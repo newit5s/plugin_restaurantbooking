@@ -46,7 +46,7 @@ class RB_Admin {
             'dashicons-calendar-alt',
             30
         );
-        
+
         add_submenu_page(
             'restaurant-booking',
             __('Dashboard', 'restaurant-booking'),
@@ -58,11 +58,20 @@ class RB_Admin {
 
         add_submenu_page(
             'restaurant-booking',
-            __('Timeline', 'restaurant-booking'),
-            __('Timeline', 'restaurant-booking'),
+            __('Lịch phục vụ', 'restaurant-booking'),
+            __('Lịch phục vụ', 'restaurant-booking'),
             'manage_options',
             'rb-timeline',
             array($this, 'display_timeline_page')
+        );
+
+        add_submenu_page(
+            'restaurant-booking',
+            __('Danh sách đặt bàn', 'restaurant-booking'),
+            __('Danh sách đặt bàn', 'restaurant-booking'),
+            'manage_options',
+            'rb-bookings-list',
+            array($this, 'display_booking_list_page')
         );
 
         add_submenu_page(
@@ -73,7 +82,7 @@ class RB_Admin {
             'rb-create-booking',
             array($this, 'display_create_booking_page')
         );
-        
+
         add_submenu_page(
             'restaurant-booking',
             __('Quản lý bàn', 'restaurant-booking'),
@@ -82,7 +91,7 @@ class RB_Admin {
             'rb-tables',
             array($this, 'display_tables_page')
         );
-        
+
         add_submenu_page(
             'restaurant-booking',
             __('Quản lý khách hàng', 'restaurant-booking'),
@@ -91,18 +100,64 @@ class RB_Admin {
             'rb-customers',
             array($this, 'display_customers_page')
         );
-        
+
         add_submenu_page(
             'restaurant-booking',
+            __('Báo cáo', 'restaurant-booking'),
+            __('Báo cáo', 'restaurant-booking'),
+            'manage_options',
+            'rb-reports',
+            array($this, 'display_reports_page')
+        );
+
+        add_menu_page(
+            __('Cấu hình Đặt bàn', 'restaurant-booking'),
+            __('Cấu hình Đặt bàn', 'restaurant-booking'),
+            'manage_options',
+            'rb-booking-settings',
+            array($this, 'display_settings_page'),
+            'dashicons-admin-generic',
+            31
+        );
+
+        add_submenu_page(
+            'rb-booking-settings',
             __('Cài đặt', 'restaurant-booking'),
             __('Cài đặt', 'restaurant-booking'),
             'manage_options',
-            'rb-settings',
+            'rb-booking-settings',
             array($this, 'display_settings_page')
         );
 
         add_submenu_page(
-            'restaurant-booking',
+            'rb-booking-settings',
+            __('Giờ hoạt động', 'restaurant-booking'),
+            __('Giờ hoạt động', 'restaurant-booking'),
+            'manage_options',
+            'rb-settings-working-hours',
+            array($this, 'display_settings_working_hours_page')
+        );
+
+        add_submenu_page(
+            'rb-booking-settings',
+            __('Thông báo', 'restaurant-booking'),
+            __('Thông báo', 'restaurant-booking'),
+            'manage_options',
+            'rb-settings-notifications',
+            array($this, 'display_settings_notifications_page')
+        );
+
+        add_submenu_page(
+            'rb-booking-settings',
+            __('Chính sách', 'restaurant-booking'),
+            __('Chính sách', 'restaurant-booking'),
+            'manage_options',
+            'rb-settings-policies',
+            array($this, 'display_settings_policies_page')
+        );
+
+        add_submenu_page(
+            'rb-booking-settings',
             __('Cập nhật tính năng', 'restaurant-booking'),
             __('Cập nhật tính năng', 'restaurant-booking'),
             'manage_options',
@@ -293,7 +348,7 @@ class RB_Admin {
                     
                     <p class="submit">
                         <button type="submit" class="button button-primary"><?php echo esc_html($backend_texts['submit_button']); ?></button>
-                        <a href="?page=restaurant-booking" class="button"><?php echo esc_html($backend_texts['cancel_button']); ?></a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=rb-bookings-list')); ?>" class="button"><?php echo esc_html($backend_texts['cancel_button']); ?></a>
                     </p>
                 </form>
             </div>
@@ -365,12 +420,313 @@ class RB_Admin {
         <?php
     }
     
+
     public function display_dashboard_page() {
         global $wpdb;
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
         $table_name = $wpdb->prefix . 'rb_bookings';
-
         $admin_language = $this->get_admin_language();
+        $today = date('Y-m-d', current_time('timestamp'));
 
+        $stats = array(
+            'total' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name"),
+            'pending' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'pending'"),
+            'confirmed' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'confirmed'"),
+            'completed' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'completed'"),
+            'cancelled' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'cancelled'"),
+            'today' => (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE booking_date = %s", $today))
+        );
+
+        $today_summary_raw = $wpdb->get_results(
+            $wpdb->prepare("SELECT status, COUNT(*) as count FROM $table_name WHERE booking_date = %s GROUP BY status", $today),
+            OBJECT_K
+        );
+
+        $today_summary = array(
+            'pending' => isset($today_summary_raw['pending']) ? (int) $today_summary_raw['pending']->count : 0,
+            'confirmed' => isset($today_summary_raw['confirmed']) ? (int) $today_summary_raw['confirmed']->count : 0,
+            'completed' => isset($today_summary_raw['completed']) ? (int) $today_summary_raw['completed']->count : 0,
+            'cancelled' => isset($today_summary_raw['cancelled']) ? (int) $today_summary_raw['cancelled']->count : 0,
+        );
+
+        $upcoming_bookings = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE booking_date >= %s ORDER BY booking_date ASC, booking_time ASC LIMIT 5",
+                $today
+            )
+        );
+
+        $recent_activity = $wpdb->get_results(
+            "SELECT id, customer_name, status, booking_date, booking_time, created_at FROM $table_name ORDER BY created_at DESC LIMIT 6"
+        );
+
+        $source_stats = $wpdb->get_results(
+            "SELECT booking_source, COUNT(*) as count FROM $table_name GROUP BY booking_source ORDER BY count DESC"
+        );
+
+        $location_stats = $wpdb->get_results(
+            "SELECT location, COUNT(*) as count FROM $table_name GROUP BY location ORDER BY count DESC"
+        );
+
+        ?>
+        <div class="wrap rb-dashboard-wrap">
+            <h1 class="rb-dashboard-title"><?php echo esc_html__('Tổng quan vận hành đặt bàn', 'restaurant-booking'); ?></h1>
+
+            <div class="rb-dashboard-actions">
+                <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=rb-create-booking')); ?>">+ <?php echo esc_html__('Tạo đặt bàn', 'restaurant-booking'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=rb-timeline')); ?>"><?php echo esc_html__('Xem lịch phục vụ', 'restaurant-booking'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=rb-bookings-list')); ?>"><?php echo esc_html__('Quản lý danh sách', 'restaurant-booking'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=rb-tables')); ?>"><?php echo esc_html__('Quản lý bàn', 'restaurant-booking'); ?></a>
+            </div>
+
+            <div class="rb-stats-grid">
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Tổng đặt bàn', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number"><?php echo esc_html($stats['total']); ?></span>
+                </div>
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Đặt bàn hôm nay', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number rb-stat-today"><?php echo esc_html($stats['today']); ?></span>
+                </div>
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Đang chờ xác nhận', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number rb-stat-pending"><?php echo esc_html($stats['pending']); ?></span>
+                </div>
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Đã xác nhận', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number rb-stat-confirmed"><?php echo esc_html($stats['confirmed']); ?></span>
+                </div>
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number rb-stat-completed"><?php echo esc_html($stats['completed']); ?></span>
+                </div>
+                <div class="rb-stat-box">
+                    <span class="rb-stat-label"><?php echo esc_html__('Đã hủy', 'restaurant-booking'); ?></span>
+                    <span class="rb-stat-number rb-stat-cancelled"><?php echo esc_html($stats['cancelled']); ?></span>
+                </div>
+            </div>
+
+            <div class="rb-dashboard-columns">
+                <div class="rb-dashboard-column rb-dashboard-column--wide">
+                    <div class="card">
+                        <h2><?php echo esc_html__('Tình hình hôm nay', 'restaurant-booking'); ?></h2>
+                        <ul class="rb-status-list">
+                            <li><span><?php echo esc_html__('Chờ xác nhận', 'restaurant-booking'); ?></span><strong><?php echo esc_html($today_summary['pending']); ?></strong></li>
+                            <li><span><?php echo esc_html__('Đã xác nhận', 'restaurant-booking'); ?></span><strong><?php echo esc_html($today_summary['confirmed']); ?></strong></li>
+                            <li><span><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></span><strong><?php echo esc_html($today_summary['completed']); ?></strong></li>
+                            <li><span><?php echo esc_html__('Đã hủy', 'restaurant-booking'); ?></span><strong><?php echo esc_html($today_summary['cancelled']); ?></strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h2><?php echo esc_html__('Nguồn khách hàng hàng đầu', 'restaurant-booking'); ?></h2>
+                        <?php if ($source_stats) : ?>
+                            <ul class="rb-mini-list">
+                                <?php foreach ($source_stats as $source) : ?>
+                                    <li>
+                                        <span><?php echo esc_html($this->get_source_label($source->booking_source)); ?></span>
+                                        <strong><?php echo esc_html($source->count); ?></strong>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="description"><?php echo esc_html__('Chưa có dữ liệu nguồn khách.', 'restaurant-booking'); ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="card">
+                        <h2><?php echo esc_html__('Đặt bàn theo chi nhánh', 'restaurant-booking'); ?></h2>
+                        <?php if ($location_stats) : ?>
+                            <ul class="rb-mini-list">
+                                <?php foreach ($location_stats as $location) :
+                                    $location_code = $location->location ? RB_I18n::sanitize_location($location->location) : 'vn';
+                                    ?>
+                                    <li>
+                                        <span><?php echo esc_html(RB_I18n::get_location_label($location_code, $admin_language)); ?></span>
+                                        <strong><?php echo esc_html($location->count); ?></strong>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="description"><?php echo esc_html__('Chưa có dữ liệu đặt bàn theo chi nhánh.', 'restaurant-booking'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="rb-dashboard-column">
+                    <div class="card">
+                        <div class="rb-card-header">
+                            <h2><?php echo esc_html__('Booking sắp diễn ra', 'restaurant-booking'); ?></h2>
+                            <a class="rb-card-link" href="<?php echo esc_url(admin_url('admin.php?page=rb-bookings-list')); ?>"><?php echo esc_html__('Xem tất cả', 'restaurant-booking'); ?></a>
+                        </div>
+                        <?php if ($upcoming_bookings) : ?>
+                            <table class="wp-list-table widefat fixed striped rb-mini-table">
+                                <thead>
+                                    <tr>
+                                        <th><?php echo esc_html__('Khách hàng', 'restaurant-booking'); ?></th>
+                                        <th><?php echo esc_html__('Ngày/Giờ', 'restaurant-booking'); ?></th>
+                                        <th><?php echo esc_html__('Số khách', 'restaurant-booking'); ?></th>
+                                        <th><?php echo esc_html__('Trạng thái', 'restaurant-booking'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($upcoming_bookings as $booking) : ?>
+                                        <tr>
+                                            <td>
+                                                <strong>#<?php echo esc_html($booking->id); ?></strong><br>
+                                                <?php echo esc_html($booking->customer_name); ?><br>
+                                                <span class="rb-muted"><?php echo esc_html($booking->customer_phone); ?></span>
+                                            </td>
+                                            <td>
+                                                <?php echo esc_html(date_i18n('d/m/Y', strtotime($booking->booking_date))); ?><br>
+                                                <span class="rb-muted"><?php echo esc_html($booking->booking_time); ?></span>
+                                            </td>
+                                            <td style="text-align:center;"><?php echo esc_html($booking->guest_count); ?></td>
+                                            <td>
+                                                <span class="rb-status rb-status-<?php echo esc_attr($booking->status); ?>"><?php echo esc_html($this->get_status_label($booking->status)); ?></span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p class="description"><?php echo esc_html__('Không có booking sắp tới.', 'restaurant-booking'); ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="card">
+                        <h2><?php echo esc_html__('Hoạt động gần đây', 'restaurant-booking'); ?></h2>
+                        <?php if ($recent_activity) : ?>
+                            <ul class="rb-activity-list">
+                                <?php foreach ($recent_activity as $activity) : ?>
+                                    <li>
+                                        <div>
+                                            <strong>#<?php echo esc_html($activity->id); ?></strong>
+                                            <?php echo esc_html($activity->customer_name); ?>
+                                            <span class="rb-status rb-status-<?php echo esc_attr($activity->status); ?>"><?php echo esc_html($this->get_status_label($activity->status)); ?></span>
+                                        </div>
+                                        <span class="rb-activity-time"><?php echo esc_html(date_i18n('d/m/Y H:i', strtotime($activity->created_at))); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <p class="description"><?php echo esc_html__('Chưa có hoạt động nào.', 'restaurant-booking'); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .rb-dashboard-wrap .rb-dashboard-title {
+                margin-bottom: 15px;
+            }
+            .rb-dashboard-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .rb-stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+                gap: 15px;
+                margin-bottom: 25px;
+            }
+            .rb-stat-box {
+                background: #fff;
+                border: 1px solid #ccd0d4;
+                border-radius: 6px;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .rb-stat-label {
+                font-size: 12px;
+                text-transform: uppercase;
+                color: #6b6b6b;
+                letter-spacing: .04em;
+            }
+            .rb-stat-number {
+                font-size: 30px;
+                font-weight: 700;
+            }
+            .rb-stat-today { color: #2563eb; }
+            .rb-stat-pending { color: #d97706; }
+            .rb-stat-confirmed { color: #047857; }
+            .rb-stat-completed { color: #059669; }
+            .rb-stat-cancelled { color: #dc2626; }
+            .rb-dashboard-columns {
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 20px;
+            }
+            .rb-dashboard-column .card {
+                margin-bottom: 20px;
+            }
+            .rb-status-list,
+            .rb-mini-list,
+            .rb-activity-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+            .rb-status-list li,
+            .rb-mini-list li {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .rb-status-list li:last-child,
+            .rb-mini-list li:last-child {
+                border-bottom: none;
+            }
+            .rb-mini-table td,
+            .rb-mini-table th {
+                padding: 8px 10px;
+            }
+            .rb-muted { color: #6b7280; font-size: 12px; }
+            .rb-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 10px;
+            }
+            .rb-card-link { font-size: 12px; text-decoration: none; }
+            .rb-activity-list li {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .rb-activity-list li:last-child { border-bottom: none; }
+            .rb-activity-time { color: #6b7280; font-size: 12px; }
+            @media (max-width: 1024px) {
+                .rb-dashboard-columns {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+        <?php
+    }
+
+    public function display_booking_list_page() {
+        global $wpdb;
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $table_name = $wpdb->prefix . 'rb_bookings';
+        $admin_language = $this->get_admin_language();
         $locations = RB_I18n::get_locations();
         $languages = RB_I18n::get_languages();
 
@@ -387,7 +743,7 @@ class RB_Admin {
         if (!empty($filter_status)) {
             $where_clauses[] = $wpdb->prepare("status = %s", $filter_status);
         }
-        
+
         if (!empty($filter_source)) {
             $where_clauses[] = $wpdb->prepare("booking_source = %s", $filter_source);
         }
@@ -405,124 +761,88 @@ class RB_Admin {
         }
 
         $where = implode(' AND ', $where_clauses);
-        
+
         $allowed_sort = array('id', 'customer_name', 'booking_date', 'booking_time', 'guest_count', 'status', 'booking_source', 'created_at', 'location', 'language');
-        if (!in_array($sort_by, $allowed_sort)) {
+        if (!in_array($sort_by, $allowed_sort, true)) {
             $sort_by = 'created_at';
         }
-        
+
         $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
-        
+
         $bookings = $wpdb->get_results("SELECT * FROM $table_name WHERE $where ORDER BY $sort_by $sort_order");
-        
+
         $stats = array(
-            'total' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name"),
-            'pending' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'pending'"),
-            'confirmed' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'confirmed'"),
-            'completed' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'completed'"),
-            'cancelled' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'cancelled'"),
-            'today' => $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE booking_date = %s", date('Y-m-d')))
+            'total' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name"),
+            'pending' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'pending'"),
+            'confirmed' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'confirmed'"),
+            'completed' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'completed'"),
+            'cancelled' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE status = 'cancelled'")
         );
-        
-        $source_stats = $wpdb->get_results(
-            "SELECT booking_source, COUNT(*) as count 
-            FROM $table_name 
-            GROUP BY booking_source 
-            ORDER BY count DESC"
-        );
-        
+
         ?>
         <div class="wrap">
             <h1>
-                <?php _e('Dashboard - Quản lý đặt bàn', 'restaurant-booking'); ?>
-                <a href="?page=rb-create-booking" class="page-title-action">Tạo đặt bàn mới</a>
+                <?php echo esc_html__('Danh sách đặt bàn', 'restaurant-booking'); ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=rb-create-booking')); ?>" class="page-title-action"><?php echo esc_html__('Tạo đặt bàn mới', 'restaurant-booking'); ?></a>
             </h1>
-            
-            <div class="rb-stats-grid" style="margin-bottom: 30px;">
-                <div class="rb-stat-box">
-                    <h3><?php _e('Tổng đặt bàn', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number"><?php echo $stats['total']; ?></p>
-                </div>
-                
-                <div class="rb-stat-box">
-                    <h3><?php _e('Chờ xác nhận', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number" style="color: #f39c12;"><?php echo $stats['pending']; ?></p>
-                </div>
-                
-                <div class="rb-stat-box">
-                    <h3><?php _e('Đã xác nhận', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number" style="color: #27ae60;"><?php echo $stats['confirmed']; ?></p>
-                </div>
-                
-                <div class="rb-stat-box">
-                    <h3><?php _e('Hoàn thành', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number" style="color: #2ecc71;"><?php echo $stats['completed']; ?></p>
-                </div>
-                
-                <div class="rb-stat-box">
-                    <h3><?php _e('Đã hủy', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number" style="color: #e74c3c;"><?php echo $stats['cancelled']; ?></p>
-                </div>
-                
-                <div class="rb-stat-box">
-                    <h3><?php _e('Đặt bàn hôm nay', 'restaurant-booking'); ?></h3>
-                    <p class="rb-stat-number" style="color: #3498db;"><?php echo $stats['today']; ?></p>
-                </div>
-            </div>
-            
-            <div class="card" style="margin-bottom: 20px; padding: 15px;">
-                <h2 style="margin-top: 0;">Thống kê theo nguồn khách</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
-                    <?php foreach ($source_stats as $source) : ?>
-                        <div style="background: #f9f9f9; padding: 10px; border-radius: 3px; text-align: center;">
-                            <strong><?php echo $this->get_source_label($source->booking_source); ?></strong>
-                            <div style="font-size: 24px; color: #2271b1;"><?php echo $source->count; ?></div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            
-            <div class="rb-filters-section" style="background: white; padding: 20px; margin-bottom: 20px; border: 1px solid #ccd0d4; border-radius: 3px;">
-                <h2 style="margin-top: 0;"><?php _e('Bộ lọc & Sắp xếp', 'restaurant-booking'); ?></h2>
-                <form method="get" action="" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end;">
-                    <input type="hidden" name="page" value="restaurant-booking">
 
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Trạng thái', 'restaurant-booking'); ?>
-                        </label>
-                        <select name="filter_status" style="width: 100%;">
-                            <option value=""><?php _e('Tất cả', 'restaurant-booking'); ?></option>
-                            <option value="pending" <?php selected($filter_status, 'pending'); ?>>Chờ xác nhận</option>
-                            <option value="confirmed" <?php selected($filter_status, 'confirmed'); ?>>Đã xác nhận</option>
-                            <option value="completed" <?php selected($filter_status, 'completed'); ?>>Hoàn thành</option>
-                            <option value="cancelled" <?php selected($filter_status, 'cancelled'); ?>>Đã hủy</option>
-                        </select>
-                    </div>
-                    
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Nguồn khách', 'restaurant-booking'); ?>
-                        </label>
-                        <select name="filter_source" style="width: 100%;">
-                            <option value=""><?php _e('Tất cả', 'restaurant-booking'); ?></option>
-                            <option value="website" <?php selected($filter_source, 'website'); ?>>🌐 Website</option>
-                            <option value="phone" <?php selected($filter_source, 'phone'); ?>>📞 Điện thoại</option>
-                            <option value="facebook" <?php selected($filter_source, 'facebook'); ?>>📘 Facebook</option>
-                            <option value="zalo" <?php selected($filter_source, 'zalo'); ?>>💬 Zalo</option>
-                            <option value="instagram" <?php selected($filter_source, 'instagram'); ?>>📷 Instagram</option>
-                            <option value="walk-in" <?php selected($filter_source, 'walk-in'); ?>>🚶 Vãng lai</option>
-                            <option value="email" <?php selected($filter_source, 'email'); ?>>✉️ Email</option>
-                            <option value="other" <?php selected($filter_source, 'other'); ?>>❓ Khác</option>
+            <div class="rb-stats-grid" style="margin-bottom: 25px;">
+                <div class="rb-stat-box">
+                    <h3><?php echo esc_html__('Tổng đặt bàn', 'restaurant-booking'); ?></h3>
+                    <p class="rb-stat-number"><?php echo esc_html($stats['total']); ?></p>
+                </div>
+                <div class="rb-stat-box">
+                    <h3><?php echo esc_html__('Chờ xác nhận', 'restaurant-booking'); ?></h3>
+                    <p class="rb-stat-number" style="color:#d97706;"><?php echo esc_html($stats['pending']); ?></p>
+                </div>
+                <div class="rb-stat-box">
+                    <h3><?php echo esc_html__('Đã xác nhận', 'restaurant-booking'); ?></h3>
+                    <p class="rb-stat-number" style="color:#047857;"><?php echo esc_html($stats['confirmed']); ?></p>
+                </div>
+                <div class="rb-stat-box">
+                    <h3><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></h3>
+                    <p class="rb-stat-number" style="color:#059669;"><?php echo esc_html($stats['completed']); ?></p>
+                </div>
+                <div class="rb-stat-box">
+                    <h3><?php echo esc_html__('Đã hủy', 'restaurant-booking'); ?></h3>
+                    <p class="rb-stat-number" style="color:#dc2626;"><?php echo esc_html($stats['cancelled']); ?></p>
+                </div>
+            </div>
+
+            <div class="rb-filters-section" style="background:#fff; padding:20px; margin-bottom:20px; border:1px solid #ccd0d4; border-radius:3px;">
+                <h2 style="margin-top:0;"><?php echo esc_html__('Bộ lọc & Sắp xếp', 'restaurant-booking'); ?></h2>
+                <form method="get" action="" style="display:flex; gap:15px; flex-wrap:wrap; align-items:end;">
+                    <input type="hidden" name="page" value="rb-bookings-list">
+                    <div>
+                        <label for="filter_status" style="display:block; font-weight:600;"><?php echo esc_html__('Trạng thái', 'restaurant-booking'); ?></label>
+                        <select name="filter_status" id="filter_status" class="regular-text">
+                            <option value=""><?php echo esc_html__('Tất cả', 'restaurant-booking'); ?></option>
+                            <option value="pending" <?php selected($filter_status, 'pending'); ?>><?php echo esc_html__('Chờ xác nhận', 'restaurant-booking'); ?></option>
+                            <option value="confirmed" <?php selected($filter_status, 'confirmed'); ?>><?php echo esc_html__('Đã xác nhận', 'restaurant-booking'); ?></option>
+                            <option value="completed" <?php selected($filter_status, 'completed'); ?>><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></option>
+                            <option value="cancelled" <?php selected($filter_status, 'cancelled'); ?>><?php echo esc_html__('Đã hủy', 'restaurant-booking'); ?></option>
                         </select>
                     </div>
 
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Khu vực', 'restaurant-booking'); ?>
-                        </label>
-                        <select name="filter_location" style="width: 100%;">
-                            <option value=""><?php _e('Tất cả khu vực', 'restaurant-booking'); ?></option>
+                    <div>
+                        <label for="filter_source" style="display:block; font-weight:600;"><?php echo esc_html__('Nguồn', 'restaurant-booking'); ?></label>
+                        <select name="filter_source" id="filter_source" class="regular-text">
+                            <option value=""><?php echo esc_html__('Tất cả', 'restaurant-booking'); ?></option>
+                            <option value="website" <?php selected($filter_source, 'website'); ?>>Website</option>
+                            <option value="phone" <?php selected($filter_source, 'phone'); ?>><?php echo esc_html__('Điện thoại', 'restaurant-booking'); ?></option>
+                            <option value="facebook" <?php selected($filter_source, 'facebook'); ?>>Facebook</option>
+                            <option value="zalo" <?php selected($filter_source, 'zalo'); ?>>Zalo</option>
+                            <option value="instagram" <?php selected($filter_source, 'instagram'); ?>>Instagram</option>
+                            <option value="walk-in" <?php selected($filter_source, 'walk-in'); ?>><?php echo esc_html__('Khách vãng lai', 'restaurant-booking'); ?></option>
+                            <option value="email" <?php selected($filter_source, 'email'); ?>>Email</option>
+                            <option value="other" <?php selected($filter_source, 'other'); ?>><?php echo esc_html__('Khác', 'restaurant-booking'); ?></option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="filter_location" style="display:block; font-weight:600;"><?php echo esc_html__('Khu vực', 'restaurant-booking'); ?></label>
+                        <select name="filter_location" id="filter_location" class="regular-text">
+                            <option value=""><?php echo esc_html__('Tất cả', 'restaurant-booking'); ?></option>
                             <?php foreach ($locations as $code => $location) : ?>
                                 <option value="<?php echo esc_attr($code); ?>" <?php selected($filter_location, $code); ?>>
                                     <?php echo esc_html(RB_I18n::get_location_label($code, $admin_language)); ?>
@@ -531,70 +851,61 @@ class RB_Admin {
                         </select>
                     </div>
 
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Từ ngày', 'restaurant-booking'); ?>
-                        </label>
-                        <input type="date" name="filter_date_from" value="<?php echo esc_attr($filter_date_from); ?>" style="width: 100%;">
+                    <div>
+                        <label for="filter_date_from" style="display:block; font-weight:600;"><?php echo esc_html__('Từ ngày', 'restaurant-booking'); ?></label>
+                        <input type="date" name="filter_date_from" id="filter_date_from" value="<?php echo esc_attr($filter_date_from); ?>" class="regular-text">
                     </div>
 
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Đến ngày', 'restaurant-booking'); ?>
-                        </label>
-                        <input type="date" name="filter_date_to" value="<?php echo esc_attr($filter_date_to); ?>" style="width: 100%;">
+                    <div>
+                        <label for="filter_date_to" style="display:block; font-weight:600;"><?php echo esc_html__('Đến ngày', 'restaurant-booking'); ?></label>
+                        <input type="date" name="filter_date_to" id="filter_date_to" value="<?php echo esc_attr($filter_date_to); ?>" class="regular-text">
                     </div>
 
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Sắp xếp theo', 'restaurant-booking'); ?>
-                        </label>
-                        <select name="sort_by" style="width: 100%;">
-                            <option value="created_at" <?php selected($sort_by, 'created_at'); ?>>Thời gian tạo</option>
-                            <option value="booking_date" <?php selected($sort_by, 'booking_date'); ?>>Ngày đặt</option>
-                            <option value="booking_time" <?php selected($sort_by, 'booking_time'); ?>>Giờ đặt</option>
-                            <option value="customer_name" <?php selected($sort_by, 'customer_name'); ?>>Tên khách</option>
-                            <option value="booking_source" <?php selected($sort_by, 'booking_source'); ?>>Nguồn khách</option>
-                            <option value="location" <?php selected($sort_by, 'location'); ?>>Khu vực</option>
-                            <option value="language" <?php selected($sort_by, 'language'); ?>>Ngôn ngữ</option>
+                    <div>
+                        <label for="sort_by" style="display:block; font-weight:600;"><?php echo esc_html__('Sắp xếp theo', 'restaurant-booking'); ?></label>
+                        <select name="sort_by" id="sort_by" class="regular-text">
+                            <option value="created_at" <?php selected($sort_by, 'created_at'); ?>><?php echo esc_html__('Ngày tạo', 'restaurant-booking'); ?></option>
+                            <option value="booking_date" <?php selected($sort_by, 'booking_date'); ?>><?php echo esc_html__('Ngày phục vụ', 'restaurant-booking'); ?></option>
+                            <option value="booking_time" <?php selected($sort_by, 'booking_time'); ?>><?php echo esc_html__('Giờ', 'restaurant-booking'); ?></option>
+                            <option value="customer_name" <?php selected($sort_by, 'customer_name'); ?>><?php echo esc_html__('Tên khách', 'restaurant-booking'); ?></option>
+                            <option value="guest_count" <?php selected($sort_by, 'guest_count'); ?>><?php echo esc_html__('Số khách', 'restaurant-booking'); ?></option>
+                            <option value="status" <?php selected($sort_by, 'status'); ?>><?php echo esc_html__('Trạng thái', 'restaurant-booking'); ?></option>
                         </select>
                     </div>
 
-                    <div style="flex: 1; min-width: 120px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            <?php _e('Thứ tự', 'restaurant-booking'); ?>
-                        </label>
-                        <select name="sort_order" style="width: 100%;">
-                            <option value="DESC" <?php selected($sort_order, 'DESC'); ?>>Giảm dần</option>
-                            <option value="ASC" <?php selected($sort_order, 'ASC'); ?>>Tăng dần</option>
+                    <div>
+                        <label for="sort_order" style="display:block; font-weight:600;"><?php echo esc_html__('Thứ tự', 'restaurant-booking'); ?></label>
+                        <select name="sort_order" id="sort_order" class="regular-text">
+                            <option value="DESC" <?php selected($sort_order, 'DESC'); ?>><?php echo esc_html__('Mới nhất trước', 'restaurant-booking'); ?></option>
+                            <option value="ASC" <?php selected($sort_order, 'ASC'); ?>><?php echo esc_html__('Cũ nhất trước', 'restaurant-booking'); ?></option>
                         </select>
                     </div>
 
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" class="button button-primary">Áp dụng</button>
-                        <a href="?page=restaurant-booking" class="button">Xóa bộ lọc</a>
+                    <div>
+                        <button type="submit" class="button button-primary" style="margin-top:0;"><?php echo esc_html__('Lọc kết quả', 'restaurant-booking'); ?></button>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=rb-bookings-list')); ?>" class="button"><?php echo esc_html__('Xóa bộ lọc', 'restaurant-booking'); ?></a>
                     </div>
                 </form>
-            </div>            
-           
-            <p style="margin-bottom: 10px;">
-                <strong><?php printf(__('Hiển thị %d kết quả', 'restaurant-booking'), count($bookings)); ?></strong>
+            </div>
+
+            <p style="margin-bottom:10px;">
+                <strong><?php printf(esc_html__('Hiển thị %d kết quả', 'restaurant-booking'), count($bookings)); ?></strong>
             </p>
-            
+
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">ID</th>
-                        <th>Khách hàng</th>
-                        <th>Điện thoại</th>
-                        <th>Ngày/Giờ</th>
-                        <th style="width: 80px;">Số khách</th>
-                        <th style="width: 70px;">Bàn số</th>
-                        <th style="width: 120px;">Khu vực</th>
-                        <th style="width: 120px;">Ngôn ngữ</th>
-                        <th style="width: 100px;">Nguồn</th>
-                        <th style="width: 110px;">Trạng thái</th>
-                        <th style="width: 250px;">Hành động</th>
+                        <th style="width:60px;">ID</th>
+                        <th><?php echo esc_html__('Khách hàng', 'restaurant-booking'); ?></th>
+                        <th><?php echo esc_html__('Điện thoại', 'restaurant-booking'); ?></th>
+                        <th><?php echo esc_html__('Ngày/Giờ', 'restaurant-booking'); ?></th>
+                        <th style="width:80px; text-align:center;"><?php echo esc_html__('Số khách', 'restaurant-booking'); ?></th>
+                        <th style="width:70px; text-align:center;"><?php echo esc_html__('Bàn số', 'restaurant-booking'); ?></th>
+                        <th style="width:120px;"><?php echo esc_html__('Khu vực', 'restaurant-booking'); ?></th>
+                        <th style="width:120px;"><?php echo esc_html__('Ngôn ngữ', 'restaurant-booking'); ?></th>
+                        <th style="width:100px;"><?php echo esc_html__('Nguồn', 'restaurant-booking'); ?></th>
+                        <th style="width:110px;"><?php echo esc_html__('Trạng thái', 'restaurant-booking'); ?></th>
+                        <th style="width:220px;"><?php echo esc_html__('Hành động', 'restaurant-booking'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -605,101 +916,51 @@ class RB_Admin {
                                 <td><strong><?php echo esc_html($booking->customer_name); ?></strong></td>
                                 <td><?php echo esc_html($booking->customer_phone); ?></td>
                                 <td>
-                                    <strong><?php echo esc_html(date('d/m/Y', strtotime($booking->booking_date))); ?></strong><br>
-                                    <span style="color: #666;"><?php echo esc_html($booking->booking_time); ?></span>
+                                    <strong><?php echo esc_html(date_i18n('d/m/Y', strtotime($booking->booking_date))); ?></strong><br>
+                                    <span class="rb-muted"><?php echo esc_html($booking->booking_time); ?></span>
                                 </td>
-                                <td style="text-align: center;"><?php echo esc_html($booking->guest_count); ?></td>
-                                <td style="text-align: center;">
-                                    <?php echo $booking->table_number ? '<strong>Bàn ' . esc_html($booking->table_number) . '</strong>' : '-'; ?>
-                                </td>
-                                <td>
-                                    <?php echo esc_html(RB_I18n::get_location_label(isset($booking->location) ? $booking->location : 'vn', $admin_language)); ?>
-                                </td>
-                                <td>
-                                    <?php echo esc_html($this->get_language_label(isset($booking->language) ? $booking->language : 'vi')); ?>
-                                </td>
+                                <td style="text-align:center;"><?php echo esc_html($booking->guest_count); ?></td>
+                                <td style="text-align:center;"><?php echo $booking->table_number ? '<strong>Bàn ' . esc_html($booking->table_number) . '</strong>' : '-'; ?></td>
+                                <td><?php echo esc_html(RB_I18n::get_location_label(isset($booking->location) ? $booking->location : 'vn', $admin_language)); ?></td>
+                                <td><?php echo esc_html($this->get_language_label(isset($booking->language) ? $booking->language : 'vi')); ?></td>
                                 <td>
                                     <?php
                                     $source = isset($booking->booking_source) ? $booking->booking_source : 'website';
-                                    echo '<span style="font-size: 11px; padding: 2px 6px; background: #e8e8e8; border-radius: 3px;">' . 
-                                         esc_html($this->get_source_label($source)) . '</span>';
+                                    echo '<span style="font-size:11px; padding:2px 6px; background:#e8e8e8; border-radius:3px;">' . esc_html($this->get_source_label($source)) . '</span>';
                                     ?>
                                 </td>
                                 <td>
-                                    <span class="rb-status rb-status-<?php echo esc_attr($booking->status); ?>">
-                                        <?php echo $this->get_status_label($booking->status); ?>
-                                    </span>
+                                    <span class="rb-status rb-status-<?php echo esc_attr($booking->status); ?>"><?php echo esc_html($this->get_status_label($booking->status)); ?></span>
                                 </td>
                                 <td>
-                                    <?php if ($booking->status == 'pending') : ?>
-                                        <a href="?page=restaurant-booking&action=confirm&id=<?php echo $booking->id; ?>&_wpnonce=<?php echo wp_create_nonce('rb_action'); ?>" 
-                                        class="button button-primary button-small">Xác nhận</a>
-                                        <a href="?page=restaurant-booking&action=cancel&id=<?php echo $booking->id; ?>&_wpnonce=<?php echo wp_create_nonce('rb_action'); ?>" 
-                                        class="button button-small">Hủy</a>
-                                    <?php elseif ($booking->status == 'confirmed') : ?>
-                                        <a href="?page=restaurant-booking&action=complete&id=<?php echo $booking->id; ?>&_wpnonce=<?php echo wp_create_nonce('rb_action'); ?>" 
-                                        class="button button-small">Hoàn thành</a>
-                                        <a href="?page=restaurant-booking&action=cancel&id=<?php echo $booking->id; ?>&_wpnonce=<?php echo wp_create_nonce('rb_action'); ?>" 
-                                        class="button button-small">Hủy</a>
+                                    <?php if ($booking->status === 'pending') : ?>
+                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=rb-bookings-list&action=confirm&id=' . $booking->id), 'rb_action')); ?>" class="button button-primary button-small"><?php echo esc_html__('Xác nhận', 'restaurant-booking'); ?></a>
+                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=rb-bookings-list&action=cancel&id=' . $booking->id), 'rb_action')); ?>" class="button button-small"><?php echo esc_html__('Hủy', 'restaurant-booking'); ?></a>
+                                    <?php elseif ($booking->status === 'confirmed') : ?>
+                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=rb-bookings-list&action=complete&id=' . $booking->id), 'rb_action')); ?>" class="button button-small"><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></a>
+                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=rb-bookings-list&action=cancel&id=' . $booking->id), 'rb_action')); ?>" class="button button-small"><?php echo esc_html__('Hủy', 'restaurant-booking'); ?></a>
                                     <?php endif; ?>
-                                    <a href="?page=restaurant-booking&action=delete&id=<?php echo $booking->id; ?>&_wpnonce=<?php echo wp_create_nonce('rb_action'); ?>" 
-                                    class="button button-small" 
-                                    onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                                    <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=rb-bookings-list&action=delete&id=' . $booking->id), 'rb_action')); ?>" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Bạn có chắc muốn xóa?', 'restaurant-booking')); ?>');"><?php echo esc_html__('Xóa', 'restaurant-booking'); ?></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else : ?>
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 40px;">
-                                <p style="font-size: 16px; color: #666;">Không có đặt bàn nào.</p>
-                            </td>
+                            <td colspan="11" style="text-align:center; padding:40px;"><?php echo esc_html__('Không có đặt bàn nào.', 'restaurant-booking'); ?></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
-        
+
         <style>
-            .rb-stats-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                gap: 15px;
-            }
-            .rb-stat-box {
-                background: #fff;
-                border: 1px solid #ccd0d4;
-                border-radius: 3px;
-                padding: 15px;
-                text-align: center;
-            }
-            .rb-stat-box h3 {
-                margin: 0 0 8px 0;
-                color: #666;
-                font-size: 13px;
-                font-weight: 400;
-                text-transform: uppercase;
-            }
-            .rb-stat-number {
-                font-size: 32px;
-                font-weight: 700;
-                margin: 0;
-            }
-            .rb-status {
-                padding: 3px 8px;
-                border-radius: 3px;
-                font-size: 11px;
-                font-weight: 600;
-                display: inline-block;
-                text-transform: uppercase;
-            }
-            .rb-status-pending { background: #fef2c0; color: #973d00; }
-            .rb-status-confirmed { background: #c6e1c6; color: #2e6e2e; }
-            .rb-status-cancelled { background: #f5c6c6; color: #8a0000; }
-            .rb-status-completed { background: #d4edda; color: #155724; }
+            .rb-filters-section .button { margin-top: 0; }
+            .rb-muted { color: #6b7280; font-size: 12px; }
         </style>
         <?php
     }
-    
+
+
     public function display_tables_page() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'rb_tables';
@@ -1219,7 +1480,7 @@ class RB_Admin {
         <?php
     }
     
-    public function display_settings_page() {
+    public function display_settings_page($section = null) {
         $settings = get_option('rb_settings', array());
 
         if (!class_exists('RB_I18n')) {
@@ -1264,6 +1525,32 @@ class RB_Admin {
         );
         
         $settings = wp_parse_args($settings, $defaults);
+
+        $tabs = array(
+            'hours' => array('label' => '🕐 Giờ làm việc', 'target' => '#tab-hours'),
+            'booking' => array('label' => '📅 Đặt bàn', 'target' => '#tab-booking'),
+            'notifications' => array('label' => '🔔 Thông báo', 'target' => '#tab-notifications'),
+            'policies' => array('label' => '📋 Chính sách', 'target' => '#tab-policies'),
+            'advanced' => array('label' => '🔧 Nâng cao', 'target' => '#tab-advanced'),
+        );
+
+        if ($section === null && isset($_GET['section'])) {
+            $section = sanitize_text_field(wp_unslash($_GET['section']));
+        }
+
+        if ($section === null) {
+            $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+            $page_section_map = array(
+                'rb-settings-working-hours' => 'hours',
+                'rb-settings-notifications' => 'notifications',
+                'rb-settings-policies' => 'policies',
+            );
+            if (isset($page_section_map[$current_page])) {
+                $section = $page_section_map[$current_page];
+            }
+        }
+
+        $active_tab = isset($tabs[$section]) ? $section : 'hours';
         ?>
         <div class="wrap">
             <h1>⚙️ Cài đặt Restaurant Booking</h1>
@@ -1274,15 +1561,15 @@ class RB_Admin {
                 
                 <!-- Tab Navigation -->
                 <h2 class="nav-tab-wrapper">
-                    <a href="#tab-hours" class="nav-tab nav-tab-active">🕐 Giờ làm việc</a>
-                    <a href="#tab-booking" class="nav-tab">📅 Đặt bàn</a>
-                    <a href="#tab-notifications" class="nav-tab">🔔 Thông báo</a>
-                    <a href="#tab-policies" class="nav-tab">📋 Chính sách</a>
-                    <a href="#tab-advanced" class="nav-tab">🔧 Nâng cao</a>
+                    <?php foreach ($tabs as $tab_key => $tab_data) : ?>
+                        <a href="<?php echo esc_attr($tab_data['target']); ?>" class="nav-tab <?php echo $active_tab === $tab_key ? 'nav-tab-active' : ''; ?>" data-tab="<?php echo esc_attr($tab_data['target']); ?>">
+                            <?php echo esc_html($tab_data['label']); ?>
+                        </a>
+                    <?php endforeach; ?>
                 </h2>
                 
                 <!-- Tab 1: Working Hours -->
-                <div id="tab-hours" class="rb-tab-content">
+                <div id="tab-hours" class="rb-tab-content" style="display: <?php echo $active_tab === 'hours' ? 'block' : 'none'; ?>;">
                     <h2>Giờ làm việc của nhà hàng</h2>
                     
                     <table class="form-table">
@@ -1424,7 +1711,7 @@ class RB_Admin {
                 </div>
                 
                 <!-- Tab 2: Booking Settings -->
-                <div id="tab-booking" class="rb-tab-content" style="display: none;">
+                <div id="tab-booking" class="rb-tab-content" style="display: <?php echo $active_tab === 'booking' ? 'block' : 'none'; ?>;">
                     <h2>Cài đặt đặt bàn</h2>
 
                     <p class="description">
@@ -1535,7 +1822,7 @@ class RB_Admin {
                 </div>
                 
                 <!-- Tab 3: Notifications -->
-                <div id="tab-notifications" class="rb-tab-content" style="display: none;">
+                <div id="tab-notifications" class="rb-tab-content" style="display: <?php echo $active_tab === 'notifications' ? 'block' : 'none'; ?>;">
                     <h2>Cài đặt thông báo</h2>
                     
                     <table class="form-table">
@@ -1589,7 +1876,7 @@ class RB_Admin {
                 </div>
                 
                 <!-- Tab 4: Policies -->
-                <div id="tab-policies" class="rb-tab-content" style="display: none;">
+                <div id="tab-policies" class="rb-tab-content" style="display: <?php echo $active_tab === 'policies' ? 'block' : 'none'; ?>;">
                     <h2>Chính sách & Quy định</h2>
 
                     <table class="form-table">
@@ -1659,7 +1946,7 @@ class RB_Admin {
                 </div>
 
                 <!-- Tab 5: Advanced -->
-                <div id="tab-advanced" class="rb-tab-content" style="display: none;">
+                <div id="tab-advanced" class="rb-tab-content" style="display: <?php echo $active_tab === 'advanced' ? 'block' : 'none'; ?>;">
                     <h2>Cài đặt nâng cao</h2>
                     
                     <table class="form-table">
@@ -1676,7 +1963,7 @@ class RB_Admin {
                         <tr>
                             <th scope="row">Export Data</th>
                             <td>
-                                <a href="<?php echo admin_url('admin.php?page=rb-settings&action=export_csv'); ?>" class="button">
+                                <a href="<?php echo admin_url('admin.php?page=rb-booking-settings&action=export_csv'); ?>" class="button">
                                     📊 Export tất cả booking ra CSV
                                 </a>
                             </td>
@@ -1804,6 +2091,182 @@ class RB_Admin {
         </script>
         <?php
     }
+    public function display_settings_working_hours_page() {
+        $this->display_settings_page('hours');
+    }
+
+    public function display_settings_notifications_page() {
+        $this->display_settings_page('notifications');
+    }
+
+    public function display_settings_policies_page() {
+        $this->display_settings_page('policies');
+    }
+
+
+    public function display_reports_page() {
+        global $wpdb;
+
+        if (!class_exists('RB_I18n')) {
+            require_once RB_PLUGIN_DIR . 'includes/class-i18n.php';
+        }
+
+        $table_name = $wpdb->prefix . 'rb_bookings';
+        $admin_language = $this->get_admin_language();
+
+        $status_data = $wpdb->get_results("SELECT status, COUNT(*) as count FROM $table_name GROUP BY status", OBJECT_K);
+        $monthly_summary = $wpdb->get_results(
+            "SELECT DATE_FORMAT(booking_date, '%Y-%m') AS period, COUNT(*) AS total, SUM(guest_count) AS guests
+            FROM $table_name
+            GROUP BY period
+            ORDER BY period DESC
+            LIMIT 6"
+        );
+        $source_stats = $wpdb->get_results(
+            "SELECT booking_source, COUNT(*) AS count FROM $table_name GROUP BY booking_source ORDER BY count DESC"
+        );
+        $peak_hours = $wpdb->get_results(
+            "SELECT booking_time, COUNT(*) AS count FROM $table_name GROUP BY booking_time ORDER BY count DESC LIMIT 8"
+        );
+        $top_customers = $wpdb->get_results(
+            "SELECT customer_phone, customer_name, COUNT(*) AS bookings
+            FROM $table_name
+            WHERE customer_phone <> ''
+            GROUP BY customer_phone, customer_name
+            ORDER BY bookings DESC
+            LIMIT 5"
+        );
+        $location_stats = $wpdb->get_results(
+            "SELECT location, COUNT(*) AS count FROM $table_name GROUP BY location ORDER BY count DESC"
+        );
+
+        ?>
+        <div class="wrap">
+            <h1><?php echo esc_html__('Báo cáo đặt bàn', 'restaurant-booking'); ?></h1>
+            <p class="description"><?php echo esc_html__('Theo dõi hiệu suất và xu hướng đặt bàn để tối ưu vận hành.', 'restaurant-booking'); ?></p>
+
+            <div class="rb-report-grid">
+                <div class="card">
+                    <h2><?php echo esc_html__('Tổng quan trạng thái', 'restaurant-booking'); ?></h2>
+                    <ul class="rb-mini-list">
+                        <li><span><?php echo esc_html__('Chờ xác nhận', 'restaurant-booking'); ?></span><strong><?php echo isset($status_data['pending']) ? esc_html($status_data['pending']->count) : '0'; ?></strong></li>
+                        <li><span><?php echo esc_html__('Đã xác nhận', 'restaurant-booking'); ?></span><strong><?php echo isset($status_data['confirmed']) ? esc_html($status_data['confirmed']->count) : '0'; ?></strong></li>
+                        <li><span><?php echo esc_html__('Hoàn thành', 'restaurant-booking'); ?></span><strong><?php echo isset($status_data['completed']) ? esc_html($status_data['completed']->count) : '0'; ?></strong></li>
+                        <li><span><?php echo esc_html__('Đã hủy', 'restaurant-booking'); ?></span><strong><?php echo isset($status_data['cancelled']) ? esc_html($status_data['cancelled']->count) : '0'; ?></strong></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h2><?php echo esc_html__('Nguồn khách hàng', 'restaurant-booking'); ?></h2>
+                    <?php if ($source_stats) : ?>
+                        <ul class="rb-mini-list">
+                            <?php foreach ($source_stats as $source) : ?>
+                                <li><span><?php echo esc_html($this->get_source_label($source->booking_source)); ?></span><strong><?php echo esc_html($source->count); ?></strong></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else : ?>
+                        <p class="description"><?php echo esc_html__('Chưa có dữ liệu nguồn khách.', 'restaurant-booking'); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="card">
+                    <h2><?php echo esc_html__('Khung giờ cao điểm', 'restaurant-booking'); ?></h2>
+                    <?php if ($peak_hours) : ?>
+                        <ul class="rb-mini-list">
+                            <?php foreach ($peak_hours as $row) : ?>
+                                <li><span><?php echo esc_html($row->booking_time); ?></span><strong><?php echo esc_html($row->count); ?></strong></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else : ?>
+                        <p class="description"><?php echo esc_html__('Chưa có dữ liệu giờ cao điểm.', 'restaurant-booking'); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="card">
+                    <h2><?php echo esc_html__('Khách hàng thân thiết', 'restaurant-booking'); ?></h2>
+                    <?php if ($top_customers) : ?>
+                        <ul class="rb-mini-list">
+                            <?php foreach ($top_customers as $customer) : ?>
+                                <li>
+                                    <span><?php echo esc_html($customer->customer_name ?: $customer->customer_phone); ?></span>
+                                    <strong><?php printf(esc_html__('%d lượt', 'restaurant-booking'), $customer->bookings); ?></strong>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else : ?>
+                        <p class="description"><?php echo esc_html__('Chưa có dữ liệu khách thân thiết.', 'restaurant-booking'); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><?php echo esc_html__('Xu hướng theo tháng', 'restaurant-booking'); ?></h2>
+                <?php if ($monthly_summary) : ?>
+                    <table class="wp-list-table widefat striped rb-mini-table">
+                        <thead>
+                            <tr>
+                                <th><?php echo esc_html__('Tháng', 'restaurant-booking'); ?></th>
+                                <th><?php echo esc_html__('Số booking', 'restaurant-booking'); ?></th>
+                                <th><?php echo esc_html__('Tổng khách', 'restaurant-booking'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthly_summary as $row) : ?>
+                                <tr>
+                                    <td><?php echo esc_html(date_i18n('m/Y', strtotime($row->period . '-01'))); ?></td>
+                                    <td><?php echo esc_html($row->total); ?></td>
+                                    <td><?php echo esc_html($row->guests ?: 0); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else : ?>
+                    <p class="description"><?php echo esc_html__('Chưa có dữ liệu theo tháng.', 'restaurant-booking'); ?></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <h2><?php echo esc_html__('Phân bố theo chi nhánh', 'restaurant-booking'); ?></h2>
+                <?php if ($location_stats) : ?>
+                    <table class="wp-list-table widefat striped rb-mini-table">
+                        <thead>
+                            <tr>
+                                <th><?php echo esc_html__('Chi nhánh', 'restaurant-booking'); ?></th>
+                                <th><?php echo esc_html__('Số booking', 'restaurant-booking'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($location_stats as $row) :
+                                $location_code = $row->location ? RB_I18n::sanitize_location($row->location) : 'vn';
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html(RB_I18n::get_location_label($location_code, $admin_language)); ?></td>
+                                    <td><?php echo esc_html($row->count); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else : ?>
+                    <p class="description"><?php echo esc_html__('Chưa có dữ liệu chi nhánh.', 'restaurant-booking'); ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <style>
+            .rb-report-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+            .rb-mini-table td,
+            .rb-mini-table th {
+                padding: 8px 12px;
+            }
+        </style>
+        <?php
+    }
+
 
     public function display_feature_updates_page() {
         if (!class_exists('RB_Update_Features')) {
@@ -2018,7 +2481,7 @@ class RB_Admin {
         }
 
         // Handle export CSV (GET request)
-        if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isset($_GET['page']) && $_GET['page'] === 'rb-settings') {
+        if (isset($_GET['action']) && $_GET['action'] === 'export_csv' && isset($_GET['page']) && $_GET['page'] === 'rb-booking-settings') {
             if (!current_user_can('manage_options')) {
                 wp_die('Unauthorized');
             }
@@ -2159,7 +2622,7 @@ class RB_Admin {
             }
         }
         
-        wp_redirect(admin_url('admin.php?page=restaurant-booking&message=admin_booking_created'));
+        wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=admin_booking_created'));
         exit;
     }
     
@@ -2170,7 +2633,7 @@ class RB_Admin {
         $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id));
 
         if (!$booking) {
-            wp_redirect(admin_url('admin.php?page=restaurant-booking&message=booking_not_found'));
+            wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=booking_not_found'));
             exit;
         }
 
@@ -2178,7 +2641,7 @@ class RB_Admin {
 
         if (is_wp_error($result)) {
             $error_message = urlencode($result->get_error_message());
-            wp_redirect(admin_url('admin.php?page=restaurant-booking&message=no_tables&error=' . $error_message));
+            wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=no_tables&error=' . $error_message));
             exit;
         }
 
@@ -2188,7 +2651,7 @@ class RB_Admin {
             $email->send_confirmation_email($booking);
         }
 
-        wp_redirect(admin_url('admin.php?page=restaurant-booking&message=confirmed'));
+        wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=confirmed'));
         exit;
     }
     
@@ -2196,7 +2659,7 @@ class RB_Admin {
         global $rb_booking;
         $rb_booking->cancel_booking($id);
         
-        wp_redirect(admin_url('admin.php?page=restaurant-booking&message=cancelled'));
+        wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=cancelled'));
         exit;
     }
     
@@ -2204,7 +2667,7 @@ class RB_Admin {
         global $rb_booking;
         $rb_booking->complete_booking($id);
         
-        wp_redirect(admin_url('admin.php?page=restaurant-booking&message=completed'));
+        wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=completed'));
         exit;
     }
     
@@ -2214,7 +2677,7 @@ class RB_Admin {
         
         $wpdb->delete($table_name, array('id' => $id));
         
-        wp_redirect(admin_url('admin.php?page=restaurant-booking&message=deleted'));
+        wp_redirect(admin_url('admin.php?page=rb-bookings-list&message=deleted'));
         exit;
     }
     
@@ -2311,7 +2774,7 @@ class RB_Admin {
         
         update_option('rb_settings', $clean_settings);
         
-        wp_redirect(admin_url('admin.php?page=rb-settings&message=saved'));
+        wp_redirect(admin_url('admin.php?page=rb-booking-settings&message=saved'));
         exit;
     }
     
@@ -2408,6 +2871,12 @@ class RB_Admin {
         <div class="wrap rb-timeline-wrap">
             <h1><?php echo esc_html($title); ?></h1>
 
+            <div class="rb-timeline-quick-actions">
+                <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=rb-create-booking')); ?>">+ <?php echo esc_html__('Tạo đặt bàn', 'restaurant-booking'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=rb-bookings-list')); ?>"><?php echo esc_html__('Danh sách đặt bàn', 'restaurant-booking'); ?></a>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=rb-tables')); ?>"><?php echo esc_html__('Quản lý bàn', 'restaurant-booking'); ?></a>
+            </div>
+
             <div id="rb-timeline-toolbar" class="rb-timeline-toolbar">
                 <div class="rb-toolbar-group">
                     <label for="rb-timeline-location" class="rb-toolbar-label"><?php echo esc_html($location_label); ?></label>
@@ -2451,6 +2920,15 @@ class RB_Admin {
                 </div>
             </div>
         </div>
+
+        <style>
+            .rb-timeline-quick-actions {
+                margin-bottom: 15px;
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+        </style>
 
         <div id="rb-timeline-modal" class="rb-timeline-modal" aria-hidden="true" role="dialog" aria-modal="true">
             <div class="rb-timeline-modal__dialog" role="document">

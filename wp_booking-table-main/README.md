@@ -71,27 +71,33 @@ wp-content/plugins/restaurant-booking-manager/
 
 ### Quản lý đặt bàn
 
-1. **Dashboard:** Admin > Đặt bàn
+1. **Dashboard:** Admin > Đặt bàn > Dashboard
    - 📊 Thống kê tổng quan (tổng, pending, confirmed, completed, cancelled, hôm nay)
-   - 📈 Thống kê theo nguồn khách (Website, Phone, Facebook, Zalo, Instagram, Walk-in, Email...)
-   - 🔍 **Bộ lọc nâng cao:**
-     - Lọc theo trạng thái
-     - Lọc theo nguồn khách
-     - Lọc theo khoảng ngày
-     - Sắp xếp linh hoạt (theo ngày, giờ, tên, nguồn...)
+   - 📈 KPI nguồn khách nhanh
+   - 🔗 Lối tắt hành động chính (tạo đặt bàn, mở lịch phục vụ, xem báo cáo)
 
-2. **Tạo đặt bàn (Admin):** Admin > Tạo đặt bàn
+2. **Lịch phục vụ:** Admin > Đặt bàn > Lịch phục vụ
+   - Theo dõi booking theo dòng thời gian trong ngày
+   - Bộ lọc nhanh theo ca, khu vực, trạng thái
+   - Thao tác nhanh: xác nhận, check-in, gán bàn, đánh dấu hoàn thành
+
+3. **Danh sách đặt bàn:** Admin > Đặt bàn > Danh sách đặt bàn
+   - Bảng toàn bộ booking với bộ lọc đa tiêu chí
+   - Sắp xếp linh hoạt theo ngày tạo, ngày phục vụ, trạng thái, nguồn khách
+   - Thống kê mini cho tổng, pending, confirmed, completed, cancelled
+
+4. **Tạo đặt bàn (Admin):** Admin > Đặt bàn > Tạo đặt bàn
    - Tạo booking thủ công từ admin
    - Chọn nguồn booking (📞 Phone, 📘 Facebook, 💬 Zalo, 🚶 Walk-in...)
    - Ghi chú nội bộ (không hiển thị cho khách)
    - Tự động xác nhận hoặc để pending
 
-3. **Quản lý bàn:** Admin > Quản lý bàn
+5. **Quản lý bàn:** Admin > Đặt bàn > Quản lý bàn
    - Xem tình trạng tất cả bàn
    - Thêm/xóa/tạm ngưng bàn
    - Kích hoạt/vô hiệu hóa bàn
 
-4. **⭐ Quản lý khách hàng (CRM):** Admin > Khách hàng
+6. **⭐ Quản lý khách hàng (CRM):** Admin > Đặt bàn > Khách hàng
    - **Dashboard thống kê:**
      - Tổng khách hàng
      - Khách VIP
@@ -112,30 +118,35 @@ wp-content/plugins/restaurant-booking-manager/
      - Lọc VIP, Blacklist
      - Sắp xếp theo bookings, completed, last visit...
 
-5. **Cài đặt nâng cao:** Admin > Cài đặt
-   - **Tab Giờ làm việc:**
+7. **Báo cáo:** Admin > Đặt bàn > Báo cáo
+   - Biểu đồ nguồn khách, hiệu suất ca, tỷ lệ hủy
+   - Xuất nhanh dữ liệu theo bộ lọc
+   - Báo cáo hành vi khách (VIP, khách quay lại)
+
+8. **Cài đặt nâng cao:** Admin > Cấu hình Đặt bàn > Cài đặt (và các submenu)
+   - **Submenu Giờ hoạt động:**
      - Simple mode: 1 ca (có thể có giờ nghỉ trưa)
      - Advanced mode: 2 ca riêng (sáng + tối)
      - Mở cửa cuối tuần
-   
+
    - **Tab Đặt bàn:**
      - Khoảng thời gian slot (15/30/45/60 phút)
      - Buffer time giữa các booking
      - Đặt trước tối thiểu/tối đa
      - Số khách tối đa
      - Tự động xác nhận
-   
-   - **Tab Thông báo:**
+
+   - **Submenu Thông báo:**
      - Email admin/khách hàng
      - Email nhắc lịch
      - SMS (cần API)
-   
-   - **Tab Chính sách:**
+
+   - **Submenu Chính sách:**
      - Yêu cầu đặt cọc (cho booking ≥X khách)
      - Hủy miễn phí trước X giờ
      - Auto-blacklist sau X lần no-show
      - Ngày nghỉ đặc biệt (Tết, lễ...)
-   
+
    - **Tab Nâng cao:**
      - Cleanup bookings cũ (>6 tháng)
      - Export CSV
@@ -152,12 +163,13 @@ wp-content/plugins/restaurant-booking-manager/
 - ✅ Inline form (không modal)
 
 ### Backend (Admin)
-- ✅ Dashboard quản lý trực quan với stats đầy đủ
-- ✅ Xác nhận đặt bàn với auto-assign table
+- ✅ Dashboard quản lý trực quan với stats đầy đủ và shortcut thao tác
+- ✅ Lịch phục vụ realtime với thao tác check-in/assign nhanh
+- ✅ Danh sách đặt bàn có bộ lọc & sắp xếp nâng cao
+- ✅ Báo cáo chuyên sâu về nguồn khách, hiệu suất ca
 - ✅ Quản lý trạng thái bàn
 - ✅ Email tự động HTML đẹp
 - ✅ **Tạo booking từ admin** (Phone, Facebook, Zalo, Walk-in...)
-- ✅ **Bộ lọc & sắp xếp nâng cao**
 - ✅ **Export CSV**
 
 ### 👥 Hệ thống CRM Khách hàng
