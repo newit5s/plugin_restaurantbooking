@@ -279,7 +279,7 @@ function rb_booking_shortcode($atts) {
  */
 add_filter('plugin_action_links_' . RB_PLUGIN_BASENAME, 'rb_plugin_action_links');
 function rb_plugin_action_links($links) {
-    $settings_link = '<a href="' . admin_url('admin.php?page=rb-settings') . '">' . __('Cài đặt', 'restaurant-booking') . '</a>';
+    $settings_link = '<a href="' . admin_url('admin.php?page=rb-booking-settings') . '">' . __('Cài đặt', 'restaurant-booking') . '</a>';
     array_unshift($links, $settings_link);
     return $links;
 }
